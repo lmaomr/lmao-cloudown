@@ -1,0 +1,29 @@
+# 前端
+cloud-fronted/node_modules
+cloud-fronted/dist
+cloud-fronted/.env
+cloud-fronted/.env.local
+cloud-fronted/.env.*.local
+cloud-fronted/npm-debug.log*
+cloud-fronted/yarn-debug.log*
+cloud-fronted/yarn-error.log*
+
+# 后端
+cloudown/target/
+cloudown/.mvn
+cloudown/logs/
+cloudown/*.log
+cloudown/.env
+cloudown/application-*.properties
+!cloudown/application-example.properties
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# 系统文件
+.DS_Store
+Thumbs.db

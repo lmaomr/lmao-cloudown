@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: cloudown
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/cloudown?useSSL=false&serverTimezone=Asia/Tokyo&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    open-in-view: false
+    show-sql: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  servlet:
+    multipart:
+      location: D:/Cloudown/temp
+      max-file-size: 5MB
+      max-request-size: 25MB
+
+server:
+    port: 8080
+
+jwt:
+  secret: 458261197@qq.com_lmao_cloudown_20250713
+  expiration: 14400000
+
+file:
+  upload:
+    path: D:/Cloudown/upload
+
+  temp:
+    path: D:/Cloudown/temp
+
+app:
+  server:
+    base-url: http://localhost:8080  # 生产环境替换为实际域名
