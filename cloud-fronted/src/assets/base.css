@@ -1,0 +1,194 @@
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  /* 统一盒模型 */
+  box-sizing: border-box;
+}
+
+html {
+  /* 设置根字体大小 */
+  font-size: clamp(12px, 0.4vw + 8px, 18px);
+  /* 12px~18px 之间动态变化 */
+  /* 平滑滚动 */
+  scroll-behavior: smooth;
+}
+
+/* 统一字体和背景 */
+body {
+  /* 字体颜色 */
+  color: var(--text-color);
+  /* 字体 */
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* 行高 */
+  line-height: 1.6;
+  /* 防止内容溢出 */
+  overflow-x: hidden;
+  /* 文本渲染优化 */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 禁止用户选择文本 */
+  /* Chrome, Safari, Opera */
+  -webkit-user-select: none;
+  /* Firefox */
+  -moz-user-select: none;
+  /* Internet Explorer/Edge */
+  -ms-user-select: none;
+  /* 标准语法 */
+  user-select: none;
+  background-color: var(--bg-color);
+}
+
+/* 允许特定元素进行文本选择（如输入框、文本框等） */
+input,
+textarea,
+.allow-select,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* 禁止拖拽图片 */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+}
+
+/* 可选：添加特定类以允许文本选择 */
+.selectable-text {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* 全局按钮样式 */
+button {
+  padding: 8px 16px;
+  background-color: var(--primary-color);
+  color: white;
+  cursor: pointer;
+  border: none;
+  border-radius: 0.4rem;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:focus {
+  outline: 2px solid var(--focus-shadow);
+  outline-offset: 2px;
+}
+
+/* 全局链接样式 */
+a {
+  color: var(--primary-light);
+  text-decoration: none;
+  transition: color var(--transition-speed);
+}
+
+a:hover {
+  color: var(--primary-hover);
+}
+
+/* 在外部链接后添加图标 */
+a[target="_blank"]::after {
+  content: " ↗";
+}
+
+a:focus {
+  outline: none;
+}
+
+/* 引用样式 */
+blockquote {
+  position: relative;
+  padding: 1rem 2rem;
+  margin: 1.5rem 0;
+  background-color: #f9f9f9;
+  border-left: 4px solid var(--primary-light);
+  font-style: italic;
+}
+
+blockquote::before {
+  content: "“";
+  position: absolute;
+  left: 0.5rem;
+  top: -0.5rem;
+  font-size: 3em;
+  color: var(--primary-light);
+  line-height: 1;
+}
+
+/* 移除列表默认样式 */
+ul,
+ol {
+  list-style: none;
+}
+
+/* 响应式图片 */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 清除浮动 */
+.clearfix::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+/* 整个滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  /* 垂直滚动条宽度 */
+  height: 8px;
+  /* 水平滚动条高度 */
+}
+
+/* 滚动条轨道 */
+::-webkit-scrollbar-track {
+  background: var(--card-bg);
+  /* 轨道背景色 */
+  border-radius: 4px;
+  /* 轨道圆角 */
+}
+
+/* 滚动条滑块 */
+::-webkit-scrollbar-thumb {
+  background: var(--i-color);
+  /* 滑块颜色 */
+  border-radius: 4px;
+  /* 滑块圆角 */
+}
+
+/* 鼠标悬停在滑块上 */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--i-color);
+  /* 悬停时滑块颜色 */
+}
+
+* {
+  scrollbar-width: thin;
+  /* 可选值: auto, thin, none */
+  scrollbar-color: var(--i-color) var(--card-bg);
+  /* 滑块颜色 轨道颜色 */
+}
+
+* .fa-sun {
+  color: #ffd54f;
+}

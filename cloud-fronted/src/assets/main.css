@@ -1,0 +1,214 @@
+@import './base.css';
+
+:root {
+  /* 定义 CSS 变量（主题色） */
+  /* 主色调 */
+  --primary-color: #1976d2;
+  --primary-light: #4791db;
+  --primary-dark: #115293;
+  --primary-hover: #1565c0;
+  --button-hover: #f7f7f7;
+  --file-hover: #DCDCDCFF;
+
+  /* 背景色 */
+  --bg-color: #f5f5f5;
+  --card-bg: #ffffff;
+  --toast-bg: white;
+  --input-bg: #ecedef;
+  --file-bg: #F5F5F5FF;
+
+  /* 文本色 */
+  --text-color: #303030;
+  --text-primary: #333;
+  --text-secondary: #666;
+  --i-color: #757575;
+  --icon-color: #aaaaaa;
+
+  /* 功能色 */
+  --default-color: #2196f3;
+  /* --info-color-rgb: 33, 150, 243; */
+  --danger-color: #f44336;
+  /* --danger-color-rgb: 244, 67, 54; */
+  --success-color: #4caf50;
+  /* --success-color-rgb: 76, 175, 80; */
+  --warning-color: #ff9800;
+  /* --warning-color-rgb: 255, 152, 0; */
+
+  .fa-file,
+  .fa-file-alt{
+    color: var(--text-secondary);
+  }
+
+  .fa-image,
+  .fa-video {
+      color: rgb(211, 47, 47);
+  }
+
+  .fa-file-zipper {
+      color: rgb(255, 152, 0);
+  }
+
+  .fa-file-pdf,
+  .fa-file-powerpoint {
+      color: rgb(244, 67, 54);
+  }
+
+  .fa-file-word {
+      color: rgb(33, 150, 243);
+  }
+
+  .fa-file-excel {
+      color: rgb(76, 175, 80);
+  }
+
+  .fa-windows {
+      color: rgb(117, 67, 173);
+  }
+
+  /* 边框和阴影 */
+  --border-color: #e0e0e0;
+  --card-border-radius: 8px;
+  --menu-border-radius: 6px;
+  --file-border-radius: 12px;
+  --divider-color: #ececec;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --focus-shadow: rgba(25, 118, 210, 0.15);
+  --drag-shadow: rgba(255, 255, 255, 0.9);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+  /* 交互状态 */
+  --hover-bg: #f0f7ff;
+  --active-bg: #eaf3ff;
+  --selected-bg: #e3f2fd;
+
+  /* 进度条 */
+  --progress-bg: #f0f0f0;
+  --progress-color: linear-gradient(90deg, #42a5f5 0%, var(--primary-color) 100%);
+
+  /* 层级关系 */
+  /* 侧边栏 */
+  --z-index-sidebar: 1000;
+  /* 下拉菜单 */
+  --z-index-menu: 1100;
+  /* 提示框（应覆盖 dropdown） */
+  --z-index-tooltip: 1200;
+  /* 弹窗 */
+  --z-index-modal: 1300;
+  /* 弹窗遮罩 */
+  --z-index-backdrop: 1400;
+  /* 全局通知 */
+  --z-index-toast: 1500;
+  /* 全屏加载 */
+  --z-index-loading: 1600;
+  /* 删除 --z-index-max */
+
+  /* 过渡动画 */
+  --transition-speed: 0.3s;
+
+  /* 侧边栏宽度 */
+  --sidebar-width: 18rem;
+  /* 图标字体大小 */
+  --i-font-size: 1.1rem;
+
+  /* 浅色模式 */
+  --scrollbar-track: var(--card-bg);
+  --scrollbar-thumb: var(--i-color);
+}
+
+/* 暗色主题变量 */
+[data-theme="dark"] {
+  /* 主色调 - 保持品牌色一致性 */
+  --primary-color: #2196f3;
+  --primary-light: #64b5f6;
+  --primary-dark: #1976d2;
+  --primary-hover: #1e88e5;
+  --button-hover: #252633;
+  --file-hover: #191d23;
+
+  /* 背景色 */
+  --bg-color: #1a1c23;
+  --card-bg: #282a36;
+  --toast-bg: #292b35;
+  --input-bg: #363844;
+  --file-bg: #20232c;
+  --icon-bg: #23252e;
+
+  /* 文本色 - 补充所有文本相关变量 */
+  --text-color: rgba(255, 255, 255, 0.87);
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --i-color: #9aa0a6;
+  /* 添加图标颜色 */
+
+  /* 边框和阴影 */
+  --border-color: #333333;
+  --divider-color: #2c2c2c;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --focus-shadow: rgba(33, 150, 243, 0.25);
+  --drag-shadow: rgba(33, 33, 48, 0.863);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.4);
+
+  /* 交互状态 */
+  --hover-bg: rgba(33, 150, 243, 0.1);
+  --active-bg: rgba(33, 150, 243, 0.15);
+  --selected-bg: rgba(33, 150, 243, 0.2);
+
+  /* 进度条 */
+  --progress-bg: #3a3f4b;
+
+  /* 滚动条 */
+  --scrollbar-track: #333;
+  --scrollbar-thumb: #666;
+
+  button{
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* 响应式设计媒体查询 */
+/* 移动设备 */
+@media (max-width: 768px) {}
+
+/* 平板设备 */
+@media (min-width: 769px) and (max-width: 1024px) {}
+
+/* 大屏设备 */
+@media (min-width: 1440px) {}
+
+/* 打印样式优化 */
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  .sidebar-container,
+  .header-bar,
+  button,
+  .toast-container,
+  .storage-info {
+    display: none !important;
+  }
+
+  a {
+    color: #000 !important;
+    text-decoration: underline;
+  }
+
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 2cm;
+  }
+}
