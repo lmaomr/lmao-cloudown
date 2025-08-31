@@ -134,7 +134,7 @@ const menuLeft = ref(0);
 const menuTop = ref(0);
 
 // 打开右键菜单
-const openMenu = (e) => {
+const openMenu = (e, file = null, index = -1) => {
   e.preventDefault();
   e.stopPropagation();
 
@@ -152,6 +152,17 @@ const openMenu = (e) => {
   }
 
   isMenuOpen.value = true;
+
+  // 调试信息
+  if (file) {
+    console.log('选中的文件:', file);
+    console.log('文件ID:', file.id || '无ID');
+    console.log('文件名:', file.name);
+    console.log('文件类型:', file.type);
+    console.log('文件索引:', index);
+  } else {
+    console.log('点击在空白区域');
+  }
 };
 
 // 关闭右键菜单
@@ -362,7 +373,7 @@ const selectOption = (value) => {
     <div v-else-if="viewMode === 'grid' && fileManageStore.fileList.length > 0" class="grid-container">
       <p>文件</p>
       <div class="file-list-container grid-view">
-        <div class="file-list-item" v-for="(item, index) in fileManageStore.fileList" :key="index">
+        <div class="file-list-item" v-for="(item, index) in fileManageStore.fileList" :key="index" @contextmenu.prevent="openMenu($event, item, index)">
           <div class="file-container-item">
             <div class="file-list-item-icon">
               <i :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
@@ -392,7 +403,7 @@ const selectOption = (value) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item, index) in fileManageStore.fileList" :key="index" class="file-row">
+          <tr v-for="(item, index) in fileManageStore.fileList" :key="index" class="file-row" @contextmenu.prevent="openMenu($event, item, index)">
             <td class="file-name">
               <div class="file-name-container">
                 <i :class="formatFileType(item.name).icon"></i>
