@@ -77,35 +77,6 @@ const handleDrop = async (e) => {
   e.stopPropagation();
   isDragging.value = false;
   const droppedFiles = e.dataTransfer.files;
-  // if (droppedFiles.length > 0) {
-  //   files.value = Array.from(droppedFiles);
-  //   for (const file of files.value) {
-  //     const chunks = [];
-  //     for (let i = 0; i < file.size; i += 1024 * 1024 * 5) {
-  //       const chunk = file.slice(i, i + 1024 * 1024 * 5);
-  //       chunks.push(chunk);
-  //     }
-  //     // 基本使用
-  //     const hash = await calculateFileHash(chunks, {
-  //       onProgress: (progress) => {
-  //         console.log(`进度: ${progress.progress}%, 速度: ${formatSpeed(progress.speed)}`);
-  //       }
-  //     });
-  //
-  //     // 支持取消
-  //     const controller = new AbortController();
-  //     calculateFileHash(chunks, {
-  //       signal: controller.signal,
-  //       onProgress: (progress) => {
-  //         console.log(`进度: ${progress.progress}%`);
-  //       }
-  //     });
-  //
-  //     console.log('hash', hash);
-  //
-  //     // 取消计算
-  //     // controller.abort();
-  //   }
   if (!droppedFiles || droppedFiles.length === 0) return;
   const file = droppedFiles[0];
   // 更全面的文件验证
@@ -121,16 +92,6 @@ const handleDrop = async (e) => {
     console.error('操作失败:', error);
   }
 };
-
-// 处理文件选择变化
-// const handleFileChange = (e) => {
-//   const selectedFiles = e.target.files;
-//   if (selectedFiles.length > 0) {
-//     files.value = Array.from(selectedFiles);
-//     // 这里可以添加处理上传的逻辑
-//     console.log('文件已选择:', files.value);
-//   }
-// };
 
 // 右键菜单状态
 const isMenuOpen = ref(false);
@@ -220,7 +181,13 @@ const handleFolderDoubleClick = (folder) => {
     pathStore.setBreadcrumbPath(folder.name);
     const path = pathStore.getBreadcrumbPath();
     console.log('更新后的路径:', path);
+    refreshFileList();
   }
+};
+
+const setDesigPath = (index) => {
+  pathStore.setDesigPath(index + 1);
+  refreshFileList();
 };
 
 </script>
@@ -229,7 +196,7 @@ const handleFolderDoubleClick = (folder) => {
   <div class="tool-bar">
     <div class="path-bar">
       <div class="path-item" v-for="(item, index) in pathStore.breadcrumbPath" :key="index">
-        <span class="path-item-label" @click="pathStore.setDesigPath(index + 1)">
+        <span class="path-item-label" @click="setDesigPath(index)">
           <i class="fas fa-home" v-if="pathStore.getActiveElement(item).icon === 'fas fa-home'"></i>
           {{ pathStore.getActiveElement(item).label || item.label }}
         </span>
@@ -264,7 +231,7 @@ const handleFolderDoubleClick = (folder) => {
         <svg v-if="viewMode === 'grid'" class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false"
           aria-hidden="true" viewBox="0 0 24 24">
           <path
-            d="M3 6.25A3.25 3.25 0 0 1 6.25 3h11.5A3.25 3.25 0 0 1 21 6.25v5.772a6.471 6.471 0 0 0-1.5-.709V10h-4v1.313a6.471 6.471 0 0 0-1.5.709V10h-4v4h2.022a6.471 6.471 0 0 0-.709 1.5H10v4h1.313c.173.534.412 1.037.709 1.5H6.25A3.25 3.25 0 0 1 3 17.75V6.25ZM6.25 4.5A1.75 1.75 0 0 0 4.5 6.25V8.5h4v-4H6.25ZM4.5 10v4h4v-4h-4Zm11-1.5h4V6.25a1.75 1.75 0 0 0-1.75-1.75H15.5v4Zm-1.5-4h-4v4h4v-4Zm-9.5 11v2.25c0 .966.784 1.75 1.75 1.75H8.5v-4h-4Zm9.778-1.525a2 2 0 0 1-1.441 2.497l-.584.144a5.729 5.729 0 0 0 .006 1.807l.54.13a2 2 0 0 1 1.45 2.51l-.187.632c.44.386.94.699 1.484.921l.494-.518a2 2 0 0 1 2.899 0l.498.525a5.281 5.281 0 0 0 1.483-.913l-.198-.686a2 2 0 0 1 1.441-2.496l.584-.144a5.716 5.716 0 0 0-.006-1.808l-.54-.13a2 2 0 0 1-1.45-2.51l.187-.63a5.278 5.278 0 0 0-1.484-.923l-.493.519a2 2 0 0 1-2.9 0l-.498-.525c-.544.22-1.044.53-1.483.912l.198.686ZM17.5 19c-.8 0-1.45-.672-1.45-1.5 0-.829.65-1.5 1.45-1.5.8 0 1.45.671 1.45 1.5 0 .828-.65 1.5-1.45 1.5Z">
+            d="M3 6.25A3.25 3.25 0 0 1 6.25 3h11.5A3.25 3.25 0 0 1 21 6.25v5.772a6.471 6.471 0 0 0 -1.5-.709V10h-4v1.313a6.471 6.471 0 0 0-1.5.709V10h-4v4h2.022a6.471 6.471 0 0 0-.709 1.5H10v4h1.313c.173.534.412 1.037.709 1.5H6.25A3.25 3.25 0 0 1 3 17.75V6.25ZM6.25 4.5A1.75 1.75 0 0 0 4.5 6.25V8.5h4v-4H6.25ZM4.5 10v4h4v-4h-4Zm11-1.5h4V6.25a1.75 1.75 0 0 0-1.75-1.75H15.5v4Zm-1.5-4h-4v4h4v-4Zm-9.5 11v2.25c0 .966.784 1.75 1.75 1.75H8.5v-4h-4Zm9.778-1.525a2 2 0 0 1-1.441 2.497l-.584.144a5.729 5.729 0 0 0 .006 1.807l.54.13a2 2 0 0 1 1.45 2.51l-.187.632c.44.386.94.699 1.484.921l.494-.518a2 2 0 0 1 2.899 0l.498.525a5.281 5.281 0 0 0 1.483-.913l-.198-.686a2 2 0 0 1 1.441-2.496l.584-.144a5.716 5.716 0 0 0-.006-1.808l-.54-.13a2 2 0 0 1-1.45-2.51l.187-.63a5.278 5.278 0 0 0-1.484-.923l-.493.519a2 2 0 0 1-2.9 0l-.498-.525c-.544.22-1.044.53-1.483.912l.198.686ZM17.5 19c-.8 0-1.45-.672-1.45-1.5 0-.829.65-1.5 1.45-1.5.8 0 1.45.671 1.45 1.5 0 .828-.65 1.5-1.45 1.5Z">
           </path>
         </svg>
         <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -448,18 +415,32 @@ const handleFolderDoubleClick = (folder) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item, index) in fileManageStore.fileList" :key="index" class="file-row"
+          <!-- 文件夹区 -->
+          <tr v-for="(item, index) in folders" :key="'folder-' + index" class="file-row"
             @contextmenu.prevent="openMenu($event, item, index)"
-            @dblclick="item.type === 'folder' && handleFolderDoubleClick(item)"
-            :style="{ cursor: item.type === 'folder' ? 'pointer' : 'default' }">
+            @dblclick="handleFolderDoubleClick(item)"
+            style="cursor: pointer">
             <td class="file-name">
               <div class="file-name-container">
-                <i :class="formatFileType(item.name).icon"></i>
+                <i class="fas fa-folder"></i>
+                <span :title="item.name">{{ item.name }}</span>
+              </div>
+            </td>
+            <td class="file-size">-</td>
+            <td class="file-modified">{{ formatDate(item.updateTime) ?? '-' }}</td>
+            <td class="file-type">文件夹</td>
+          </tr>
+          <!-- 文件区 -->
+          <tr v-for="(item, index) in files" :key="'file-' + index" class="file-row"
+            @contextmenu.prevent="openMenu($event, item, index)"
+            style="cursor: default">
+            <td class="file-name">
+              <div class="file-name-container">
+                <i :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
                 <span :title="item.name">{{ item.name }}</span>
               </div>
             </td>
             <td class="file-size">{{ formatFileSize(item.size) ?? '-' }}</td>
-            <!-- 简化模板表达式，用 nullish 合并运算符更严谨 -->
             <td class="file-modified">{{ formatDate(item.updateTime) ?? '-' }}</td>
             <td class="file-type">{{ item.type || '-' }}</td>
           </tr>
@@ -615,27 +596,6 @@ i.submenu-indicator {
   padding: 1rem;
 }
 
-.section-title {
-  display: flex;
-  align-items: center;
-  font-size: 0.9rem;
-  gap: 0.2rem;
-  line-height: 1rem;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-  font-weight: normal;
-  color: var(--text-color);
-}
-
-.section-title i {
-  color: var(--i-color);
-}
-
-.section-title .count {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
 .folders-section,
 .files-section {
   background-color: var(--card-bg);
@@ -752,7 +712,7 @@ svg.MuiSvgIcon-root {
 
 .path-item-label {
   color: var(--i-color);
-  font-size: 1rem;
+  font-size: 0.875rem;
   margin: 0 4px;
 }
 
