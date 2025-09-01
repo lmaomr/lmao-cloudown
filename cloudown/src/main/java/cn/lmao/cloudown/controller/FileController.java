@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import cn.lmao.cloudown.excepiton.CustomException;
 import cn.lmao.cloudown.model.dto.ApiResponse;
 import cn.lmao.cloudown.model.entity.File;
 import cn.lmao.cloudown.model.entity.User;
@@ -155,6 +156,75 @@ public class FileController {
         } catch (Exception e) {
             log.error("上传头像失败: {}", e.getMessage());
             return ApiResponse.exception(ErrorOperationStatus.FILE_UPLOAD_FAILED);
+        }
+    }
+
+    @PostMapping("/createFolder")
+    public ApiResponse<String> createFolder(
+            @RequestParam String folderName,
+            @RequestParam String path) {
+        
+        try {
+            // 参数验证
+            if (StringUtils.isBlank(folderName)) {
+                return ApiResponse.exception(ErrorOperationStatus.INVALID_FILENAME);
+            }
+            if (StringUtils.isBlank(path)) {
+                return ApiResponse.exception(ErrorOperationStatus.INVALID_PATH);
+            }
+
+            User user = getUserFromToken();
+            log.info("用户: {} 请求创建文件夹: {}, 路径: {}", user.getNickname(), folderName, path);
+
+            // 调用服务层创建文件夹
+            fileService.createFolder(user, folderName, path);
+            
+            log.info("用户: {} 创建文件夹成功: {}", user.getNickname(), folderName);
+            return ApiResponse.success("文件夹创建成功！");
+        } catch (CustomException e){
+            log.warn("创建文件夹参数错误: {}", e.getMessage());
+            return ApiResponse.exception(e);
+        } catch (IllegalArgumentException e) {
+            log.warn("创建文件夹参数错误: {}", e.getMessage());
+            return ApiResponse.error(400, e.getMessage());
+        } catch (Exception e) {
+            log.error("创建文件夹失败: folderName={}, path={}, error={}", 
+                    folderName, path, e.getMessage(), e);
+            return ApiResponse.exception(ErrorOperationStatus.FOLDER_CREATE_FAILED);
+        }
+    }
+
+    @PostMapping("/createFile")
+    public ApiResponse<String> createFile(
+            @RequestParam String fileName,
+            @RequestParam String path,
+            @RequestParam(required = false) String content) {
+        
+        try {
+            // 参数验证
+            if (StringUtils.isBlank(fileName)) {
+                return ApiResponse.exception(ErrorOperationStatus.INVALID_FILENAME);
+            }
+            if (StringUtils.isBlank(path)) {
+                return ApiResponse.exception(ErrorOperationStatus.INVALID_PATH);
+            }
+
+            User user = getUserFromToken();
+            log.info("用户: {} 请求创建文件: {}, 路径: {}", user.getNickname(), fileName, path);
+
+            // 调用服务层创建文件
+            fileService.createFile(user, fileName, path, content);
+            
+            log.info("用户: {} 创建文件成功: {}", user.getNickname(), fileName);
+            return ApiResponse.success("文件创建成功！");
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("创建文件参数错误: {}", e.getMessage());
+            return ApiResponse.error(400, e.getMessage());
+        } catch (Exception e) {
+            log.error("创建文件失败: fileName={}, path={}, error={}", 
+                    fileName, path, e.getMessage(), e);
+            return ApiResponse.exception(ErrorOperationStatus.FILE_CREATE_FAILED);
         }
     }
 

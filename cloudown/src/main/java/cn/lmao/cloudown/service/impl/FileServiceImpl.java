@@ -1,5 +1,9 @@
 package cn.lmao.cloudown.service.impl;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -28,12 +32,8 @@ import lombok.RequiredArgsConstructor;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.security.NoSuchAlgorithmException;
@@ -321,18 +321,21 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public void createFolder(String folderName, String relativePath, User user) throws IOException {
+    public void createFolder(User user, String folderName, String path) throws IOException {
         log.debug("创建文件夹: {}", folderName);
-        File file = new File(folderName, fileUtil.getUserPath(user.getId()) + "/" + folderName, relativePath, "folder",
+        if (fileRepository.findByName(folderName) != null) {
+            throw new CustomException(ErrorOperationStatus.FILE_EXISTS);
+        }
+        File file = new File(folderName, fileUtil.getUserPath(user.getId()) + "/" + folderName, path, "folder",
                 user);
         fileRepository.save(file);
         log.debug("创建文件夹成功");
     }
 
     @Override
-    public void createTextFile(String fileName, String relativePath, User user) throws IOException {
+    public void createFile(User user, String fileName, String path, String content) throws IOException {
         log.debug("创建文本文件: {}", fileName);
-        File file = new File(fileName, fileUtil.getUserPath(user.getId()) + "/" + fileName, relativePath, "text", user);
+        File file = new File(fileName, fileUtil.getUserPath(user.getId()) + "/" + fileName, path, "text", user);
         fileRepository.save(file);
         log.debug("创建文本文件成功");
     }

@@ -18,6 +18,13 @@ public interface FileService {
     void mergeFile(User user, String fileName, Long size, int chunksCount, String path) throws IOException, NoSuchAlgorithmException;
 
     // 下载文件
+
+    // 创建文件夹
+    void createFolder(User user, String folderName, String path) throws IOException;
+
+    // 创建文件
+    void createFile(User user, String fileName, String path, String content) throws IOException;
+
     File downloadFile(Long fileId);
 
     // 删除文件
@@ -25,12 +32,6 @@ public interface FileService {
 
     // 获取文件列表
     List<File> getFileList(User user, String path, String category, String sort);
-
-    //创建文件夹
-    void createFolder(String folderName, String relativePath, User user) throws IOException;
-
-    //创建文本文件
-    void createTextFile(String fileName, String relativePath, User user) throws IOException;
 
     //获取文件信息
     File getFile(Long fileId);

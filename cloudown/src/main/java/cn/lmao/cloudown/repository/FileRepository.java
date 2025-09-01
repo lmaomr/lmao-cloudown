@@ -10,4 +10,5 @@ import cn.lmao.cloudown.model.entity.User;
 public interface FileRepository extends JpaRepository<File, Long> {
     List<File> findByUser(User user);
 
+    File findByName(String name);
 }

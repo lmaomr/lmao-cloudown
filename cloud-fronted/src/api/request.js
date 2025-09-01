@@ -33,7 +33,11 @@ request.interceptors.response.use(
 
     // 根据业务状态码处理（示例）
     if (res.code !== 200) {
-      toast.error('出错啦！', res.msg || '服务器异常')
+      if (res.code !== 400 && res.code !== 500) {
+        toast.warning('有点问题！', res.msg || '服务器异常')
+      }else {
+        toast.error('出错啦！', res.msg || '服务器异常')
+      } 
       return Promise.reject(new Error(res.msg || 'Error'))
     } else {
       return res // 返回实际需要的数据

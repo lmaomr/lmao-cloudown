@@ -95,6 +95,7 @@ const usePathStore = defineStore('path', () => {
   const getActiveElement = (item) => {
     for (const element of menuItems.value) {
       const group = element.items.find(val => val.section === item.section);
+      console.log(group);
       if (group) return group;
     }
     return { section: '', label: '', icon: '' };
@@ -102,7 +103,11 @@ const usePathStore = defineStore('path', () => {
 
   // 设置面包屑路径
   const setBreadcrumbPath = (path) => {
-    breadcrumbPath.value.push(path);
+    breadcrumbPath.value.push({
+      title: '文件夹',
+      label: path
+    });
+    safeLocalStorage.set('breadcrumbPath', JSON.stringify(breadcrumbPath.value));
   };
 
   return {

@@ -39,12 +39,42 @@ const useFileManageStore = defineStore('fileManage', () => {
     safeLocalStorage.set('sortOptions', options);
   }
 
+  const createFolder = async (folderName) => {
+    try {
+      const response = await fileApi.createFolder(folderName, pathStore.getBreadcrumbPath());
+      if (response.code === 200) {
+        console.log('文件夹创建成功', response.data);
+        getFileList(); // 刷新文件列表
+      } else {
+        console.error('文件夹创建失败', response.message);
+      }
+    } catch (err) {
+      console.error('文件夹创建异常', err);
+    }
+  };
+
+  const createTextFile = async (fileName) => {
+    try {
+      const response = await fileApi.createTextFile(fileName, pathStore.getBreadcrumbPath());
+      if (response.code === 200) {
+        console.log('文本文档创建成功', response.data);
+        getFileList(); // 刷新文件列表
+      } else {
+        console.error('文本文档创建失败', response.message);
+      }
+    } catch (err) {
+      console.error('文本文档创建异常', err);
+    }
+  };
+
   return {
     fileList,
     sortOptions,
     getFileList,
     uploadFile,
-    setSortOptions
+    setSortOptions,
+    createFolder,
+    createTextFile,
   }
 })
 

@@ -18,6 +18,11 @@ public enum ErrorOperationStatus {
 
     /* ========== 请求参数异常 (4xx) ========== */
     PARAM_REQUIRED(400, "缺少必要参数"),
+    INVALID_PATH(400, "无效的路径"),
+    
+    /* ========== 文件操作异常 ========== */
+    FILE_CREATE_FAILED(500, "文件创建失败"),
+    FOLDER_CREATE_FAILED(500, "文件夹创建失败"),
     PARAM_INVALID(400, "参数格式错误"),
     PARAM_ERROR(400, "参数错误"),
     PARAM_TYPE_NOT_FOUND(400, "不支持该请求类型"),

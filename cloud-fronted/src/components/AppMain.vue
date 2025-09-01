@@ -25,6 +25,10 @@ const isOpen = ref(false);
 const isCreateFolderModalVisible = ref(false);
 // 新建文本文档弹窗
 const isCreateTextModalVisible = ref(false);
+// 文件夹名称
+const folderName = ref('');
+// 文本文件名称
+const textFileName = ref('');
 
 // 组件映射表 - 将section映射到对应的组件
 const componentMap = {
@@ -47,13 +51,27 @@ const toggleDropdown = (e) => {
 
 const createFolder = () => {
   console.log('新建文件夹');
-
+  if (!folderName.value) {
+    toast.warning("文件夹名称不能为空", "请输入文件夹名称");
+    return;
+  }
+  // 验证文件夹名称是否包含特殊字符
+  const invalidChars = /[\\\/:\*\?"<>\|]/;
+  if (invalidChars.test(folderName.value)) {
+    toast.warning("文件夹名称包含非法字符", "请勿使用 \\ / : * ? \" < > | 等特殊字符");
+    return;
+  }
+  fileManageStore.createFolder(folderName.value);
   handleClose();
 }
 
 const createText = () => {
   console.log('新建文本文档');
-
+  if (!textFileName.value) {
+    toast.warning("文件名称不能为空", "请输入文件名称");
+    return;
+  }
+  fileManageStore.createTextFile(textFileName.value);
   handleClose();
 }
 
@@ -95,6 +113,9 @@ const createUploadFolder = () => {
 const handleClose = () => {
   isCreateFolderModalVisible.value = false;
   isCreateTextModalVisible.value = false;
+  // 清空输入框的值
+  folderName.value = '';
+  textFileName.value = '';
 }
 
 const openUserInfoPanel = inject('openUserInfoPanel');
@@ -174,15 +195,21 @@ defineEmits(['toggleSidebar']);
       @close="handleClose()">
       <div class="modal-body">
         <label for="folderName" class="form-label">文件夹名称</label>
-        <input type="text" class="form-input" placeholder="请输入文件夹名称">
+        <input type="text" 
+               class="form-input" 
+               placeholder="请输入文件夹名称" 
+               v-model="folderName">
         <div class="form-hint">文件夹名称不能包含特殊字符 \\ / : * ? " &lt; &gt;|</div>
       </div>
     </ModalBox>
     <ModalBox ui="fas fa-file-alt" title="新建文本文档" :visible="isCreateTextModalVisible" @confirm="createText()"
       @close="handleClose()">
       <div class="modal-body">
-        <label for="folderName" class="form-label">文件名称</label>
-        <input type="text" class="form-input" placeholder="请输入文件名称">
+        <label for="fileName" class="form-label">文件名称</label>
+        <input type="text" 
+               class="form-input" 
+               placeholder="请输入文件名称" 
+               v-model="textFileName">
         <div class="form-hint">文件名称不能包含特殊字符 \\ / : * ? " &lt; &gt; |</div>
       </div>
     </ModalBox>
@@ -215,6 +242,7 @@ defineEmits(['toggleSidebar']);
   font-size: 15px;
   transition: border-color 0.2s;
   margin: 1rem 0;
+  background-color: var(--input-bg);
 }
 
 .form-input:focus {
@@ -264,8 +292,8 @@ defineEmits(['toggleSidebar']);
 
 .create-menu-content li i {
   font-size: 1rem;
-  color: var(--i-color);
 }
+
 
 /* 过渡动画 */
 .slide-enter-active,

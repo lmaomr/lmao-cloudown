@@ -40,11 +40,14 @@
   }
 
   .fa-image,
-  .fa-video {
+  .fa-video,
+  .fa-file-upload {
       color: rgb(211, 47, 47);
   }
 
-  .fa-file-zipper {
+  .fa-file-zipper,
+  .fa-folder,
+  .fa-folder-plus {
       color: rgb(255, 152, 0);
   }
 

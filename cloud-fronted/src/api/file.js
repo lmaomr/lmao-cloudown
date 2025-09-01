@@ -12,6 +12,8 @@ export const getFileList = (path, category, sort) => {
   })
 }
 
+
+
 export const checkUploadTask = (quickHash) => {
   return request({
     url: '/api/file/check-upload',
@@ -62,8 +64,8 @@ export const createFolder = (folderName, path) => {
   return request({
     url: '/api/file/createFolder',
     method: 'post',
-    data: {
-      folderName: folderName,
+    params: {
+      folderName,
       path: path || 'my-files/',
     },
   })
@@ -71,9 +73,9 @@ export const createFolder = (folderName, path) => {
 
 const createTextFile = (fileName, path) => {
   return request({
-    url: '/api/file/createTextFile',
+    url: '/api/file/createFile',
     method: 'post',
-    data: {
+    params: {
       fileName: fileName,
       path: path || 'my-files/',
     },

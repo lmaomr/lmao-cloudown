@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import useFileManageStore from '@/stores/fileManageStore';
 import usePathStore from '@/stores/pathStore';
@@ -12,6 +12,10 @@ const pathStore = usePathStore();
 const fileManageStore = useFileManageStore();
 const loadingStore = useLoadingStore();
 const uploadStore = useUploadStore();
+
+// 分离文件夹和文件
+const folders = computed(() => fileManageStore.fileList.filter(item => item.type === 'folder'));
+const files = computed(() => fileManageStore.fileList.filter(item => item.type !== 'folder'));
 
 const isDragging = ref(false);
 // 视图模式：grid 或 list
@@ -138,16 +142,16 @@ const openMenu = (e, file = null, index = -1) => {
   e.preventDefault();
   e.stopPropagation();
 
-  const w =window.screen.width
-  const h =window.screen.height
+  const w = window.screen.width
+  const h = window.screen.height
 
   menuLeft.value = e.clientX;
   menuTop.value = e.clientY
 
-  if(w-e.clientX<210) {
+  if (w - e.clientX < 210) {
     menuLeft.value = w - 210;
   }
-  if (h-e.clientY<450) {
+  if (h - e.clientY < 450) {
     menuTop.value = h - 470;
   }
 
@@ -209,6 +213,16 @@ const selectOption = (value) => {
   }, 100);
 };
 
+// 处理双击进入文件夹
+const handleFolderDoubleClick = (folder) => {
+  if (folder.type === 'folder') {
+    console.log('双击进入文件夹:', folder.name);
+    pathStore.setBreadcrumbPath(folder.name);
+    const path = pathStore.getBreadcrumbPath();
+    console.log('更新后的路径:', path);
+  }
+};
+
 </script>
 
 <template>
@@ -217,7 +231,7 @@ const selectOption = (value) => {
       <div class="path-item" v-for="(item, index) in pathStore.breadcrumbPath" :key="index">
         <span class="path-item-label" @click="pathStore.setDesigPath(index + 1)">
           <i class="fas fa-home" v-if="pathStore.getActiveElement(item).icon === 'fas fa-home'"></i>
-          {{ pathStore.getActiveElement(item).label }}
+          {{ pathStore.getActiveElement(item).label || item.label }}
         </span>
         <i class="fas fa-chevron-right" v-show="index < pathStore.breadcrumbPath.length - 1"></i>
       </div>
@@ -371,23 +385,54 @@ const selectOption = (value) => {
 
     <!-- 网格视图 -->
     <div v-else-if="viewMode === 'grid' && fileManageStore.fileList.length > 0" class="grid-container">
-      <p>文件</p>
-      <div class="file-list-container grid-view">
-        <div class="file-list-item" v-for="(item, index) in fileManageStore.fileList" :key="index" @contextmenu.prevent="openMenu($event, item, index)">
-          <div class="file-container-item">
-            <div class="file-list-item-icon">
-              <i :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
+      <!-- 文件夹区域 -->
+      <div v-if="folders.length > 0" class="folders-section">
+        <h3 class="section-title">
+          文件夹
+          <span class="count">({{ folders.length }})</span>
+        </h3>
+        <div class="file-list-container grid-view">
+          <div class="file-list-item" v-for="(item, index) in folders" :key="index"
+            @contextmenu.prevent="openMenu($event, item, index)"
+            @dblclick="handleFolderDoubleClick(item)"
+            style="cursor: pointer">
+            <div class="file-container-item">
+              <div class="file-list-item-icon">
+                <i class="fas fa-folder"></i>
+              </div>
+              <div :title="item.name" class="file-list-item-name">
+                {{ item.name }}
+              </div>
             </div>
-            <div :title="item.name" class="file-list-item-name">
-              {{ item.name }}
-            </div>
-          </div>
-          <div class="file-thumbnail">
-            <img v-if="item.thumbnailPath" :src="item.thumbnailPath" alt="文件缩略图" aria-haspopup="true" />
-            <i v-else :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
           </div>
         </div>
       </div>
+
+      <!-- 文件区域 -->
+      <div v-if="files.length > 0" class="files-section">
+        <h3 class="section-title">
+          文件
+          <span class="count">({{ files.length }})</span>
+        </h3>
+        <div class="file-list-container grid-view">
+          <div class="file-list-item" v-for="(item, index) in files" :key="index"
+            @contextmenu.prevent="openMenu($event, item, index)">
+            <div class="file-container-item">
+              <div class="file-list-item-icon">
+                <i :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
+              </div>
+              <div :title="item.name" class="file-list-item-name">
+                {{ item.name }}
+              </div>
+            </div>
+            <div class="file-thumbnail">
+              <img v-if="item.thumbnailPath" :src="item.thumbnailPath" alt="文件缩略图" aria-haspopup="true" />
+              <i v-else :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
 
@@ -403,7 +448,10 @@ const selectOption = (value) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item, index) in fileManageStore.fileList" :key="index" class="file-row" @contextmenu.prevent="openMenu($event, item, index)">
+          <tr v-for="(item, index) in fileManageStore.fileList" :key="index" class="file-row"
+            @contextmenu.prevent="openMenu($event, item, index)"
+            @dblclick="item.type === 'folder' && handleFolderDoubleClick(item)"
+            :style="{ cursor: item.type === 'folder' ? 'pointer' : 'default' }">
             <td class="file-name">
               <div class="file-name-container">
                 <i :class="formatFileType(item.name).icon"></i>
@@ -558,6 +606,40 @@ i.submenu-indicator {
     left: auto;
     right: 100%;
   }
+}
+
+.grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  gap: 0.2rem;
+  line-height: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  font-weight: normal;
+  color: var(--text-color);
+}
+
+.section-title i {
+  color: var(--i-color);
+}
+
+.section-title .count {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.folders-section,
+.files-section {
+  background-color: var(--card-bg);
+  border-radius: var(--card-border-radius);
 }
 
 .tool-bar {
@@ -728,7 +810,7 @@ svg.MuiSvgIcon-root {
 }
 
 .file-list-item-icon i,
-.file-name-container i{
+.file-name-container i {
   font-size: 1.25rem;
 }
 
