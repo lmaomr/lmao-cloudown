@@ -20,20 +20,6 @@ const useFileManageStore = defineStore('fileManage', () => {
     }
   };
 
-  const uploadFile = async (file) => {
-    try {
-      const response = await fileApi.uploadFile(file);
-      if (response.code === 200) {
-        console.log('文件上传成功', response.data);
-        getFileList(); // 刷新文件列表
-      } else {
-        console.error('文件上传失败', response.message);
-      }
-    } catch (err) {
-      console.error('文件上传异常', err);
-    }
-  };
-
   const setSortOptions = (options) => {
     sortOptions.value = options;
     safeLocalStorage.set('sortOptions', options);
@@ -71,7 +57,6 @@ const useFileManageStore = defineStore('fileManage', () => {
     fileList,
     sortOptions,
     getFileList,
-    uploadFile,
     setSortOptions,
     createFolder,
     createTextFile,

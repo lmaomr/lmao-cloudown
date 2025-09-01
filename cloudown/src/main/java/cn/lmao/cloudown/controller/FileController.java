@@ -82,6 +82,10 @@ public class FileController {
                 return ApiResponse.exception(ErrorOperationStatus.INVALID_FILENAME);
             }
 
+            if (file.getSize() <= 0) {
+                return ApiResponse.exception(ErrorOperationStatus.FILE_EMPTY);
+            }
+
             User user = getUserFromToken();
             log.info("用户: {} 开始上传文件分片: {} [{}/{}] (线程: {})",
                     user.getNickname(), filename, chunkIndex + 1, totalChunks, threadName);

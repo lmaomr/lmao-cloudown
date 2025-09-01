@@ -24,6 +24,7 @@ import cn.lmao.cloudown.model.entity.File.FileStatus;
 import cn.lmao.cloudown.model.entity.User;
 import cn.lmao.cloudown.model.enums.ErrorOperationStatus;
 import cn.lmao.cloudown.repository.FileRepository;
+import cn.lmao.cloudown.repository.UserRepository;
 import cn.lmao.cloudown.service.FileService;
 import cn.lmao.cloudown.util.FileTypeChecker;
 import cn.lmao.cloudown.util.FileUtil;
@@ -43,6 +44,7 @@ import java.security.NoSuchAlgorithmException;
 public class FileServiceImpl implements FileService {
 
     private final FileRepository fileRepository;
+    private final UserRepository userRepository;
     private final FileUtil fileUtil;
     private final Logger log = LogUtil.getLogger();
     private final ThumbnailService thumbnailService;
@@ -54,6 +56,9 @@ public class FileServiceImpl implements FileService {
         log.debug("开始上传文件分片: {} [分片 {}/{}]", filename, chunkIndex + 1, totalChunks);
 
         try {
+            if (totalChunks * file.getSize() + user.getUsedCapacity() > user.getTotalCapacity()) {
+                throw new CustomException(ErrorOperationStatus.STORAGE_QUOTA_EXHAUSTED);
+            }
             // 1. 参数校验
             validateUploadParams(file, filename, chunkIndex, totalChunks);
 
@@ -101,6 +106,10 @@ public class FileServiceImpl implements FileService {
 
             // 5. 保存文件记录
             saveFileEntity(user, fileName, finalFile, size, path);
+
+            // 6. 更新用户存储使用量
+            user.setUsedCapacity(user.getUsedCapacity() + size);
+            userRepository.save(user);
 
             log.info("文件合并完成: {} (最终大小:{}字节)", fileName, mergedSize);
 
@@ -302,6 +311,10 @@ public class FileServiceImpl implements FileService {
 
         filteredFiles = allFiles.stream()
                 .filter(file -> {
+                    if (file.getType().equals("文件夹")) {
+                        // 文件夹只在 "我的文件" 分类下显示
+                        return "my-files".equals(category) && file.getRelativePath().equals(path);
+                    }
                     String type = FileTypeChecker.getFileCategory(FileTypeChecker.getFileTypeFromName(file.getName()));
                     switch (category) {
                         case "my-files":
@@ -326,7 +339,7 @@ public class FileServiceImpl implements FileService {
         if (fileRepository.findByName(folderName) != null) {
             throw new CustomException(ErrorOperationStatus.FILE_EXISTS);
         }
-        File file = new File(folderName, fileUtil.getUserPath(user.getId()) + "/" + folderName, path, "folder",
+        File file = new File(folderName, fileUtil.getUserPath(user.getId()) + "/" + folderName, path, "文件夹",
                 user);
         fileRepository.save(file);
         log.debug("创建文件夹成功");
@@ -335,7 +348,7 @@ public class FileServiceImpl implements FileService {
     @Override
     public void createFile(User user, String fileName, String path, String content) throws IOException {
         log.debug("创建文本文件: {}", fileName);
-        File file = new File(fileName, fileUtil.getUserPath(user.getId()) + "/" + fileName, path, "text", user);
+        File file = new File(fileName, fileUtil.getUserPath(user.getId()) + "/" + fileName, path, "文本文件", user);
         fileRepository.save(file);
         log.debug("创建文本文件成功");
     }

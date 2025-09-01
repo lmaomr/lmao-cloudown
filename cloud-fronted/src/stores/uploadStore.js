@@ -3,6 +3,9 @@ import { defineStore } from 'pinia';
 import { calculateFileHash } from '@/utils/fileHash';
 // import { uploadFile } from '@/utils/fileUpload.js'
 import {uploadFileInChunks as uploadFile} from '@/utils/chunkUpload';
+import { useUserStore } from '@/stores/userManageStore';
+
+const userStore = useUserStore();
 
 export const useUploadStore = defineStore('upload', () => {
   // 上传任务列表
@@ -67,6 +70,7 @@ export const useUploadStore = defineStore('upload', () => {
       },
       onSuccess: () => {
         completeUploadTask(taskId);
+        userStore.getUserInfo(); // 刷新用户信息
       },
       onError: (error) => {
         failUploadTask(taskId, error);

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import useFileManageStore from '@/stores/fileManageStore';
 import usePathStore from '@/stores/pathStore';
@@ -14,8 +14,8 @@ const loadingStore = useLoadingStore();
 const uploadStore = useUploadStore();
 
 // 分离文件夹和文件
-const folders = computed(() => fileManageStore.fileList.filter(item => item.type === 'folder'));
-const files = computed(() => fileManageStore.fileList.filter(item => item.type !== 'folder'));
+const folders = computed(() => fileManageStore.fileList.filter(item => item.type === '文件夹'));
+const files = computed(() => fileManageStore.fileList.filter(item => item.type !== '文件夹'));
 
 const isDragging = ref(false);
 // 视图模式：grid 或 list
@@ -71,6 +71,20 @@ const handleDragLeave = (e) => {
   isDragging.value = false;
 };
 
+//上传文件
+const uploadFile = async (file) => {
+  if (!file) {
+    toast.warning("文件格式有误", "请选择一个有效的文件");
+    return;
+  }
+  try {
+    await uploadStore.addUploadTask(file);
+    await fileManageStore.getFileList();
+  } catch (error) {
+    console.error('操作失败:', error);
+  }
+};
+
 // 处理文件放置
 const handleDrop = async (e) => {
   e.preventDefault();
@@ -97,6 +111,46 @@ const handleDrop = async (e) => {
 const isMenuOpen = ref(false);
 const menuLeft = ref(0);
 const menuTop = ref(0);
+
+// 右键菜单相关
+const fileInputRef = ref(null)
+const folderInputRef = ref(null)
+
+// 右键菜单：上传文件
+const handleUploadFile = () => {
+  closeMenu();
+  nextTick(() => fileInputRef.value && fileInputRef.value.click());
+};
+const onFileInputChange = async (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    await uploadFile(file);
+    await fileManageStore.getFileList();
+  }
+  e.target.value = '';
+};
+
+// 右键菜单：上传目录
+const handleUploadFolder = () => {
+  closeMenu();
+  nextTick(() => folderInputRef.value && folderInputRef.value.click());
+};
+const onFolderInputChange = async (e) => {
+  const files = e.target.files;
+  if (files && files.length > 0) {
+    for (const file of files) {
+      await uploadFile(file);
+    }
+    await fileManageStore.getFileList();
+  }
+  e.target.value = '';
+};
+
+// 右键菜单：刷新
+const handleRefresh = () => {
+  closeMenu();
+  refreshFileList();
+};
 
 // 打开右键菜单
 const openMenu = (e, file = null, index = -1) => {
@@ -176,7 +230,7 @@ const selectOption = (value) => {
 
 // 处理双击进入文件夹
 const handleFolderDoubleClick = (folder) => {
-  if (folder.type === 'folder') {
+  if (folder.type === '文件夹') {
     console.log('双击进入文件夹:', folder.name);
     pathStore.setBreadcrumbPath(folder.name);
     const path = pathStore.getBreadcrumbPath();
@@ -286,11 +340,11 @@ const setDesigPath = (index) => {
     <!-- 右键菜单 -->
     <div v-if="isMenuOpen" class="custom-context-menu" :style="{ left: menuLeft + 'px', top: menuTop + 'px' }">
       <div class="menu-section">
-        <div class="menu-item">
+        <div class="menu-item" @click="handleUploadFile">
           <i class="fas fa-arrow-up"></i>
           <span>上传文件</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" @click="handleUploadFolder">
           <i class="fas fa-folder-plus"></i>
           <span>上传目录</span>
         </div>
@@ -337,7 +391,7 @@ const setDesigPath = (index) => {
       <div class="menu-divider"></div>
 
       <div class="menu-section">
-        <div class="menu-item">
+        <div class="menu-item" @click="handleRefresh">
           <i class="fas fa-sync-alt"></i>
           <span>刷新</span>
         </div>
@@ -354,14 +408,13 @@ const setDesigPath = (index) => {
     <div v-else-if="viewMode === 'grid' && fileManageStore.fileList.length > 0" class="grid-container">
       <!-- 文件夹区域 -->
       <div v-if="folders.length > 0" class="folders-section">
-        <h3 class="section-title">
+        <div class="section-title">
           文件夹
           <span class="count">({{ folders.length }})</span>
-        </h3>
+        </div>
         <div class="file-list-container grid-view">
           <div class="file-list-item" v-for="(item, index) in folders" :key="index"
-            @contextmenu.prevent="openMenu($event, item, index)"
-            @dblclick="handleFolderDoubleClick(item)"
+            @contextmenu.prevent="openMenu($event, item, index)" @dblclick="handleFolderDoubleClick(item)"
             style="cursor: pointer">
             <div class="file-container-item">
               <div class="file-list-item-icon">
@@ -377,10 +430,10 @@ const setDesigPath = (index) => {
 
       <!-- 文件区域 -->
       <div v-if="files.length > 0" class="files-section">
-        <h3 class="section-title">
+        <div class="section-title">
           文件
           <span class="count">({{ files.length }})</span>
-        </h3>
+        </div>
         <div class="file-list-container grid-view">
           <div class="file-list-item" v-for="(item, index) in files" :key="index"
             @contextmenu.prevent="openMenu($event, item, index)">
@@ -417,8 +470,7 @@ const setDesigPath = (index) => {
         <tbody>
           <!-- 文件夹区 -->
           <tr v-for="(item, index) in folders" :key="'folder-' + index" class="file-row"
-            @contextmenu.prevent="openMenu($event, item, index)"
-            @dblclick="handleFolderDoubleClick(item)"
+            @contextmenu.prevent="openMenu($event, item, index)" @dblclick="handleFolderDoubleClick(item)"
             style="cursor: pointer">
             <td class="file-name">
               <div class="file-name-container">
@@ -432,8 +484,7 @@ const setDesigPath = (index) => {
           </tr>
           <!-- 文件区 -->
           <tr v-for="(item, index) in files" :key="'file-' + index" class="file-row"
-            @contextmenu.prevent="openMenu($event, item, index)"
-            style="cursor: default">
+            @contextmenu.prevent="openMenu($event, item, index)" style="cursor: default">
             <td class="file-name">
               <div class="file-name-container">
                 <i :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
@@ -457,9 +508,10 @@ const setDesigPath = (index) => {
       </svg>
       <h5 class="empty-message">什么都没有找到</h5>
     </div>
-
   </div>
-
+  <input ref="fileInputRef" type="file" style="display:none" @change="onFileInputChange" />
+  <input ref="folderInputRef" type="file" style="display:none" webkitdirectory directory multiple
+    @change="onFolderInputChange" />
 </template>
 
 <style scoped>
@@ -571,24 +623,6 @@ i.submenu-indicator {
   justify-content: center;
 }
 
-/* 确保菜单不会超出视口 */
-@media (max-width: 768px) {
-  .custom-context-menu {
-    min-width: 14rem;
-  }
-
-  .menu-item {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-  }
-
-  .submenu {
-    min-width: 12rem;
-    left: auto;
-    right: 100%;
-  }
-}
-
 .grid-container {
   display: flex;
   flex-direction: column;
@@ -600,6 +634,20 @@ i.submenu-indicator {
 .files-section {
   background-color: var(--card-bg);
   border-radius: var(--card-border-radius);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  color: var(--text-color);
+  font-size: 0.92rem;
+  font-weight: 500;
+  gap: 0.25rem;
+  padding-bottom: 1rem;
+}
+
+.count {
+  color: var(--text-secondary);
 }
 
 .tool-bar {
@@ -723,7 +771,7 @@ svg.MuiSvgIcon-root {
 
 .path-item-label+i {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.7rem;
 }
 
 .file-content {
@@ -1018,6 +1066,23 @@ svg.MuiSvgIcon-root {
 }
 
 @media (max-width: 768px) {
+
+  /* 确保菜单不会超出视口 */
+  .custom-context-menu {
+    min-width: 14rem;
+  }
+
+  .menu-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .submenu {
+    min-width: 12rem;
+    left: auto;
+    right: 100%;
+  }
+
   .file-list-container.grid-view {
     grid-template-columns: repeat(2, 1fr);
   }
