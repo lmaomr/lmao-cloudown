@@ -109,12 +109,17 @@ const handleDrop = async (e) => {
 
 // 右键菜单状态
 const isMenuOpen = ref(false);
+const isFile = ref(false);
 const menuLeft = ref(0);
 const menuTop = ref(0);
 
 // 右键菜单相关
 const fileInputRef = ref(null)
 const folderInputRef = ref(null)
+
+// 当前选中的文件/文件夹
+const selectedFile = ref(null);
+const selectedFileIndex = ref(-1);
 
 // 右键菜单：上传文件
 const handleUploadFile = () => {
@@ -135,6 +140,7 @@ const handleUploadFolder = () => {
   closeMenu();
   nextTick(() => folderInputRef.value && folderInputRef.value.click());
 };
+
 const onFolderInputChange = async (e) => {
   const files = e.target.files;
   if (files && files.length > 0) {
@@ -150,6 +156,41 @@ const onFolderInputChange = async (e) => {
 const handleRefresh = () => {
   closeMenu();
   refreshFileList();
+};
+
+// 文件操作：重命名
+const handleRename = () => {
+  console.log('重命名文件:', selectedFile.value);
+  closeMenu();
+  // 这里实现重命名逻辑
+};
+
+// 文件操作：下载
+const handleDownload = () => {
+  console.log('下载文件:', selectedFile.value);
+  closeMenu();
+  // 这里实现下载逻辑
+};
+
+// 文件操作：删除
+const handleDelete = () => {
+  console.log('删除文件:', selectedFile.value);
+  closeMenu();
+  // 这里实现删除逻辑
+};
+
+// 文件操作：复制
+const handleCopy = () => {
+  console.log('复制文件:', selectedFile.value);
+  closeMenu();
+  // 这里实现复制逻辑
+};
+
+// 文件操作：剪切
+const handleCut = () => {
+  console.log('剪切文件:', selectedFile.value);
+  closeMenu();
+  // 这里实现剪切逻辑
 };
 
 // 打开右键菜单
@@ -170,18 +211,20 @@ const openMenu = (e, file = null, index = -1) => {
     menuTop.value = h - 470;
   }
 
-  isMenuOpen.value = true;
-
-  // 调试信息
+  // 设置菜单类型和选中的文件
   if (file) {
+    isFile.value = true;
+    selectedFile.value = file;
+    selectedFileIndex.value = index;
     console.log('选中的文件:', file);
-    console.log('文件ID:', file.id || '无ID');
-    console.log('文件名:', file.name);
-    console.log('文件类型:', file.type);
-    console.log('文件索引:', index);
   } else {
+    isFile.value = false;
+    selectedFile.value = null;
+    selectedFileIndex.value = -1;
     console.log('点击在空白区域');
   }
+
+  isMenuOpen.value = true;
 };
 
 // 关闭右键菜单
@@ -339,61 +382,115 @@ const setDesigPath = (index) => {
     @dragleave="handleDragLeave" @dragover="handleDragOver" @drop="handleDrop" @contextmenu.prevent="openMenu">
     <!-- 右键菜单 -->
     <div v-if="isMenuOpen" class="custom-context-menu" :style="{ left: menuLeft + 'px', top: menuTop + 'px' }">
-      <div class="menu-section">
-        <div class="menu-item" @click="handleUploadFile">
-          <i class="fas fa-arrow-up"></i>
-          <span>上传文件</span>
+      <!-- 空白区域右键菜单 -->
+      <div v-if="!isFile">
+        <div class="menu-section">
+          <div class="menu-item" @click="handleUploadFile">
+            <i class="fas fa-arrow-up"></i>
+            <span>上传文件</span>
+          </div>
+          <div class="menu-item" @click="handleUploadFolder">
+            <i class="fas fa-folder-plus"></i>
+            <span>上传目录</span>
+          </div>
+          <div class="menu-item">
+            <i class="fas fa-clipboard"></i>
+            <span>从剪贴板上传</span>
+          </div>
+          <div class="menu-item">
+            <i class="fas fa-cloud-download-alt"></i>
+            <span>离线下载</span>
+          </div>
         </div>
-        <div class="menu-item" @click="handleUploadFolder">
-          <i class="fas fa-folder-plus"></i>
-          <span>上传目录</span>
-        </div>
-        <div class="menu-item">
-          <i class="fas fa-clipboard"></i>
-          <span>从剪贴板上传</span>
-        </div>
-        <div class="menu-item">
-          <i class="fas fa-cloud-download-alt"></i>
-          <span>离线下载</span>
-        </div>
-      </div>
 
-      <div class="menu-divider"></div>
+        <div class="menu-divider"></div>
 
-      <div class="menu-section">
-        <div class="menu-item">
-          <i class="fas fa-folder-plus"></i>
-          <span>创建文件夹</span>
+        <div class="menu-section">
+          <div class="menu-item">
+            <i class="fas fa-folder-plus"></i>
+            <span>创建文件夹</span>
+          </div>
+          <div class="menu-item">
+            <i class="fas fa-file-alt"></i>
+            <span>创建文件</span>
+            <i class="fas fa-chevron-right submenu-indicator"></i>
+
+            <!-- 创建文件子菜单 -->
+            <div class="submenu">
+              <div class="submenu-item">
+                <i class="fab fa-markdown"></i>
+                <span>Markdown (.md)</span>
+              </div>
+              <div class="submenu-item">
+                <i class="fas fa-project-diagram"></i>
+                <span>draw.io</span>
+              </div>
+              <div class="submenu-item">
+                <i class="fas fa-file-alt"></i>
+                <span>文本 (.txt)</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="menu-item">
-          <i class="fas fa-file-alt"></i>
-          <span>创建文件</span>
-          <i class="fas fa-chevron-right submenu-indicator"></i>
-
-          <!-- 创建文件子菜单 -->
-          <div class="submenu">
-            <div class="submenu-item">
-              <i class="fab fa-markdown"></i>
-              <span>Markdown (.md)</span>
-            </div>
-            <div class="submenu-item">
-              <i class="fas fa-project-diagram"></i>
-              <span>draw.io</span>
-            </div>
-            <div class="submenu-item">
-              <i class="fas fa-file-alt"></i>
-              <span>文本 (.txt)</span>
-            </div>
+        <div class="menu-divider"></div>
+        <div class="menu-section">
+          <div class="menu-item" @click="handleRefresh">
+            <i class="fas fa-sync-alt"></i>
+            <span>刷新</span>
           </div>
         </div>
       </div>
 
-      <div class="menu-divider"></div>
+      <!-- 文件/文件夹右键菜单 -->
+      <div v-else>
+        <div class="menu-section">
+          <div class="menu-item" @click="handleDownload">
+            <i class="fas fa-download"></i>
+            <span>下载</span>
+          </div>
+          <div class="menu-item">
+            <i class="fas fa-share-alt"></i>
+            <span>分享</span>
+          </div>
+        </div>
 
-      <div class="menu-section">
-        <div class="menu-item" @click="handleRefresh">
-          <i class="fas fa-sync-alt"></i>
-          <span>刷新</span>
+        <div class="menu-divider"></div>
+
+        <div class="menu-section">
+          <div class="menu-item" @click="handleCopy">
+            <i class="fas fa-copy"></i>
+            <span>复制</span>
+          </div>
+          <div class="menu-item" @click="handleCut">
+            <i class="fas fa-cut"></i>
+            <span>剪切</span>
+          </div>
+          <div class="menu-item">
+            <i class="fas fa-clone"></i>
+            <span>创建副本</span>
+          </div>
+        </div>
+
+        <div class="menu-divider"></div>
+
+        <div class="menu-section">
+          <div class="menu-item" @click="handleRename">
+            <i class="fas fa-edit"></i>
+            <span>重命名</span>
+          </div>
+          <div class="menu-item" @click="handleDelete">
+            <i class="fas fa-trash-alt"></i>
+            <span>删除</span>
+          </div>
+        </div>
+
+        <div class="menu-divider"></div>
+
+        <div class="menu-section">
+          <div class="menu-item">
+            <i class="fas fa-info-circle"></i>
+            <span>属性</span>
+          </div>
         </div>
       </div>
     </div>
