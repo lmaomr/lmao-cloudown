@@ -303,7 +303,7 @@ const selectOption = (value) => {
 
 // 处理双击进入文件夹
 const handleFolderDoubleClick = (folder) => {
-  if (folder.type === '文件夹') {
+  if (folder.type === '文件夹' && folder.status === 'ACTIVE') {
     console.log('双击进入文件夹:', folder.name);
     pathStore.setBreadcrumbPath(folder.name);
     const path = pathStore.getBreadcrumbPath();
@@ -325,7 +325,7 @@ const setDesigPath = (index) => {
       <div class="path-item" v-for="(item, index) in pathStore.breadcrumbPath" :key="index">
         <span class="path-item-label" @click="setDesigPath(index)">
           <i class="fas fa-home" v-if="pathStore.getActiveElement(item).icon === 'fas fa-home'"></i>
-          {{ pathStore.getActiveElement(item).label || item.label }}
+          {{ pathStore.getActiveElement(item).label || item.path }}
         </span>
         <i class="fas fa-chevron-right" v-show="index < pathStore.breadcrumbPath.length - 1"></i>
       </div>

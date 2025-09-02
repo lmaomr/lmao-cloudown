@@ -56,7 +56,7 @@ const createFolder = () => {
     return;
   }
   // 验证文件夹名称是否包含特殊字符
-  const invalidChars = /[\\\/:\*\?"<>\|]/;
+  const invalidChars = /[\\/:*?"<>|]/;
   if (invalidChars.test(folderName.value)) {
     toast.warning("文件夹名称包含非法字符", "请勿使用 \\ / : * ? \" < > | 等特殊字符");
     return;
@@ -135,6 +135,26 @@ onMounted(() => {
 });
 
 defineEmits(['toggleSidebar']);
+
+const searchQuery = ref('');
+
+const performSearch = () => {
+  const query = searchQuery.value.trim();
+  if (query === '') {
+    pathStore.isSearchMode = false;
+    fileManageStore.getFileList();
+    return;
+  }
+  pathStore.isSearchMode = true;
+  fileManageStore.searchFiles(query);
+}
+
+const inputing = () => {
+  if (searchQuery.value.trim() === '') {
+    pathStore.isSearchMode = false;
+  }
+}
+
 </script>
 
 <template>
@@ -171,7 +191,7 @@ defineEmits(['toggleSidebar']);
         </div>
         <div class="search-box">
           <i class="fas fa-search"></i>
-          <input type="text" placeholder="按下 / 开始搜索" aria-label="搜索文件">
+          <input type="text" placeholder="搜索你的文件" aria-label="搜索文件" @keyup.enter="performSearch" v-model="searchQuery" @input="inputing"/>
         </div>
       </div>
       <div class="header-right">
@@ -195,9 +215,9 @@ defineEmits(['toggleSidebar']);
       @close="handleClose()">
       <div class="modal-body">
         <label for="folderName" class="form-label">文件夹名称</label>
-        <input type="text" 
-               class="form-input" 
-               placeholder="请输入文件夹名称" 
+        <input type="text"
+               class="form-input"
+               placeholder="请输入文件夹名称"
                v-model="folderName">
         <div class="form-hint">文件夹名称不能包含特殊字符 \\ / : * ? " &lt; &gt;|</div>
       </div>
@@ -206,9 +226,9 @@ defineEmits(['toggleSidebar']);
       @close="handleClose()">
       <div class="modal-body">
         <label for="fileName" class="form-label">文件名称</label>
-        <input type="text" 
-               class="form-input" 
-               placeholder="请输入文件名称" 
+        <input type="text"
+               class="form-input"
+               placeholder="请输入文件名称"
                v-model="textFileName">
         <div class="form-hint">文件名称不能包含特殊字符 \\ / : * ? " &lt; &gt; |</div>
       </div>

@@ -4,6 +4,9 @@ import { defineStore } from 'pinia';
 import { safeLocalStorage } from '@/utils/storage';
 
 const usePathStore = defineStore('path', () => {
+  // 是否处于搜索模式
+  const isSearchMode = ref(false);
+
   const menuItems = ref([
     {
       title: '文件分类',
@@ -66,7 +69,11 @@ const usePathStore = defineStore('path', () => {
       if (p.section === activeMenu.value.section && activeMenu.value.section !== 'my-files') {
         return;
       }
-      path += p.section + '/';
+      if (p.title === '目录' && isSearchMode.value === false) {
+        path += p.path + '/';
+      } else {
+        path += p.section + '/';
+      }
     });
     return path;
   }
@@ -95,7 +102,6 @@ const usePathStore = defineStore('path', () => {
   const getActiveElement = (item) => {
     for (const element of menuItems.value) {
       const group = element.items.find(val => val.section === item.section);
-      console.log(group);
       if (group) return group;
     }
     return { section: '', label: '', icon: '' };
@@ -104,8 +110,8 @@ const usePathStore = defineStore('path', () => {
   // 设置面包屑路径
   const setBreadcrumbPath = (path) => {
     breadcrumbPath.value.push({
-      title: '文件夹',
-      label: path
+      title: '目录',
+      path: path
     });
     safeLocalStorage.set('breadcrumbPath', JSON.stringify(breadcrumbPath.value));
   };

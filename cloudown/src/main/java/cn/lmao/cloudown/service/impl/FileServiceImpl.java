@@ -66,7 +66,7 @@ public class FileServiceImpl implements FileService {
 
             // 2. 准备文件信息
             String fileName = StringUtils.cleanPath(Objects.requireNonNull(filename));
-            
+
             // 3. 保存分片文件
             saveChunkFile(user.getId(), fileName, file, chunkIndex, totalChunks);
 
@@ -267,7 +267,7 @@ public class FileServiceImpl implements FileService {
                 // 构造分片文件路径
                 Path chunkFile = tempDir.resolve(chunkFileName);
                 // 删除分片文件
-                if(!Files.deleteIfExists(chunkFile)){
+                if (!Files.deleteIfExists(chunkFile)) {
                     log.warn("删除分片文件失败：{}", chunkFile.getFileName());
                 }
             } catch (IOException e) {
@@ -282,9 +282,17 @@ public class FileServiceImpl implements FileService {
         log.debug("删除文件: {}", fileId);
         File file = fileRepository.findByUserAndId(user, fileId)
                 .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
+        if (file.getType().equals("文件夹")) {
+            fileRepository.findByRelativePathStartingWith(file.getRelativePath()).forEach(f -> {
+                f.setStatus(FileStatus.DELETED);
+                fileRepository.save(f);
+            });
+            log.debug("删除文件夹及其内容成功");
+        }
         file.setStatus(FileStatus.DELETED);
         fileRepository.save(file);
         log.debug("删除文件成功");
+
     }
 
     @Override
@@ -304,18 +312,16 @@ public class FileServiceImpl implements FileService {
 
         filteredFiles = allFiles.stream()
                 .filter(file -> {
-                    if (file.getType().equals("文件夹")) {
-                        // 文件夹只在 "我的文件" 分类下显示
-                        return "my-files".equals(category) && file.getRelativePath().equals(path);
-                    }
                     String type = FileTypeChecker.getFileCategory(FileTypeChecker.getFileTypeFromName(file.getName()));
                     switch (category) {
                         case "my-files":
-                            return getFile(file.getId()).getRelativePath().equals(path) && file.getStatus() == FileStatus.ACTIVE;
+                            return getFile(file.getId()).getRelativePath().equals(path)
+                                    && file.getStatus() == FileStatus.ACTIVE;
                         case "trash":
                             return file.getStatus() == FileStatus.DELETED;
                         default:
-                            return category.equals(type);
+                            return category.equals(type) && file.getStatus() == FileStatus.ACTIVE
+                                    && !file.getType().equals("文件夹");
                     }
                 })
                 .peek(file -> log.debug("文件匹配: {}", file.getName()))
@@ -329,7 +335,7 @@ public class FileServiceImpl implements FileService {
     @Override
     public void createFolder(User user, String folderName, String path) throws IOException {
         log.debug("创建文件夹: {}", folderName);
-        if (fileRepository.findByName(folderName) != null) {
+        if (fileRepository.findByUserAndName(user, folderName) != null) {
             throw new CustomException(ErrorOperationStatus.FILE_EXISTS);
         }
         File file = new File(folderName, fileUtil.getUserPath(user.getId()) + "/" + folderName, path, "文件夹",
@@ -355,11 +361,11 @@ public class FileServiceImpl implements FileService {
     @Override
     public Resource downloadFile(User user, Long fileId, String fileName) throws IOException {
         log.debug("开始下载文件: filename={}, userId={}", fileName, user.getId());
-        
+
         try {
             // 在数据库中查找文件
             File fileEntity = fileRepository.findByUserAndId(user, fileId)
-                .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
+                    .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
 
             // 检查文件类型
             if ("文件夹".equals(fileEntity.getType())) {
@@ -368,7 +374,7 @@ public class FileServiceImpl implements FileService {
 
             // 获取文件的物理路径
             Path filePath = Path.of(fileEntity.getPath());
-            
+
             // 检查文件是否存在
             if (!Files.exists(filePath)) {
                 throw new CustomException(ErrorOperationStatus.FILE_NOT_FOUND);
@@ -376,7 +382,7 @@ public class FileServiceImpl implements FileService {
 
             // 创建文件资源
             Resource resource = new FileSystemResource(filePath.toFile());
-            
+
             if (!resource.exists()) {
                 throw new CustomException(ErrorOperationStatus.FILE_NOT_FOUND);
             }

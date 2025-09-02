@@ -21,7 +21,7 @@
   --text-color: #303030;
   --text-primary: #333;
   --text-secondary: #666;
-  --i-color: #757575;
+  --i-color: #8a8a8a;
   --icon-color: #aaaaaa;
 
   /* 功能色 */
@@ -113,7 +113,7 @@
   /* 侧边栏宽度 */
   --sidebar-width: 18rem;
   /* 图标字体大小 */
-  --i-font-size: 1.1rem;
+  --i-font-size: 1rem;
 
   /* 浅色模式 */
   --scrollbar-track: var(--card-bg);
