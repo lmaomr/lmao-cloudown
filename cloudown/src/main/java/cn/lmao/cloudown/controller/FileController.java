@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -229,6 +231,43 @@ public class FileController {
             log.error("创建文件失败: fileName={}, path={}, error={}", 
                     fileName, path, e.getMessage(), e);
             return ApiResponse.exception(ErrorOperationStatus.FILE_CREATE_FAILED);
+        }
+    }
+
+    /**
+     * 下载文件
+     * @param path 文件路径
+     * @return 文件内容
+     */
+    @GetMapping("/download")
+    public ResponseEntity<Resource> download(
+            @RequestParam String fileId,
+            @RequestParam String fileName) {
+        try {
+            if (fileId.isEmpty()&&fileName.isEmpty()) {
+                throw new IllegalArgumentException("文件ID和文件名不能为空");
+            }
+
+            User user = getUserFromToken();
+            log.info("用户: {} 请求下载文件名: {}", user.getNickname(), fileName);
+
+            // 调用服务层获取文件
+            Resource resource = fileService.downloadFile(user, fileId);
+            
+            // 设置响应头
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, 
+                            "attachment; filename=\"" + java.net.URLEncoder.encode(fileName, "UTF-8") + "\"")
+                    .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, 
+                            org.springframework.http.MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                    .body(resource);
+
+        } catch (IllegalArgumentException e) {
+            log.warn("下载文件参数错误: {}", e.getMessage());
+            throw new CustomException(ErrorOperationStatus.INVALID_PATH);
+        } catch (Exception e) {
+            log.error("下载文件失败: filename={}, error={}", fileName, e.getMessage(), e);
+            throw new CustomException(ErrorOperationStatus.FILE_DOWNLOAD_FAIL);
         }
     }
 

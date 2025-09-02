@@ -82,6 +82,15 @@ const createTextFile = (fileName, path) => {
   })
 }
 
+export const downloadFile = (fileId, fileName) => {
+  return request({
+    url: '/api/file/download',
+    method: 'get',
+    params: { fileId, fileName },
+    responseType: 'blob', // 重要：指定响应类型为blob
+  })
+}
+
 export default {
   getFileList,
   checkUploadTask,
@@ -89,5 +98,6 @@ export default {
   mergeFileChunks,
   uploadAvatar,
   createFolder,
-  createTextFile
+  createTextFile,
+  downloadFile
 }

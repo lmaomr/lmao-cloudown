@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 import cn.lmao.cloudown.service.ThumbnailService;
 import org.slf4j.Logger;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -357,6 +358,44 @@ public class FileServiceImpl implements FileService {
     public File getFile(Long fileId) {
         return fileRepository.findById(fileId)
                 .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
+    }
+
+    @Override
+    public Resource downloadFile(User user, String path) throws IOException {
+        log.info("开始下载文件: path={}, userId={}", path, user.getId());
+        
+        try {
+            // 在数据库中查找文件
+            File fileEntity = fileRepository.findByUserAndRelativePath(user, path)
+                .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
+
+            // 检查文件类型
+            if ("文件夹".equals(fileEntity.getType())) {
+                throw new CustomException(ErrorOperationStatus.FILE_DOWNLOAD_FAIL);
+            }
+
+            // 获取文件的物理路径
+            Path filePath = Path.of(fileEntity.getPath());
+            
+            // 检查文件是否存在
+            if (!Files.exists(filePath)) {
+                throw new CustomException(ErrorOperationStatus.FILE_NOT_FOUND);
+            }
+
+            // 创建文件资源
+            org.springframework.core.io.Resource resource = new org.springframework.core.io.FileSystemResource(filePath.toFile());
+            
+            if (!resource.exists()) {
+                throw new CustomException(ErrorOperationStatus.FILE_NOT_FOUND);
+            }
+
+            log.info("文件下载准备完成: {}", fileEntity.getName());
+            return resource;
+
+        } catch (Exception e) {
+            log.error("文件下载失败: path={}, error={}", path, e.getMessage(), e);
+            throw new CustomException(ErrorOperationStatus.FILE_DOWNLOAD_FAIL);
+        }
     }
 
     @Override

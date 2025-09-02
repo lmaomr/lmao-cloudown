@@ -106,6 +106,7 @@ public enum ErrorOperationStatus {
     FILE_TOO_LARGE(2007, "文件太大"),
     FILE_MOVE_FAILED(2010, "文件移动失败"),
     FILE_MERGE_FAILED(2011, "文件合并失败"),
+    
 
     // 云存储相关错误
     CLOUD_CAPACITY_NOT_ENOUGH(3002, "云存储空间不足"),

@@ -5,6 +5,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
 
 import cn.lmao.cloudown.model.entity.File;
 import cn.lmao.cloudown.model.entity.User;
@@ -18,6 +19,7 @@ public interface FileService {
     void mergeFile(User user, String fileName, Long size, int chunksCount, String path) throws IOException, NoSuchAlgorithmException;
 
     // 下载文件
+    Resource downloadFile(User user, String path) throws IOException;
 
     // 创建文件夹
     void createFolder(User user, String folderName, String path) throws IOException;

@@ -166,10 +166,27 @@ const handleRename = () => {
 };
 
 // 文件操作：下载
-const handleDownload = () => {
-  console.log('下载文件:', selectedFile.value);
-  closeMenu();
-  // 这里实现下载逻辑
+const handleDownload = async () => {
+  if (!selectedFile.value) {
+    return;
+  }
+
+  if (selectedFile.value.type === '文件夹') {
+    toast.warning('无法下载文件夹', '请选择一个文件进行下载');
+    return;
+  }
+
+  try {
+    await loadingStore.withLoading(async () => {
+      await fileManageStore.downloadFile(selectedFile.value);
+      toast.success('下载成功', `文件 ${selectedFile.value.name} 已开始下载`);
+    }, { text: '正在准备下载...', fullscreen: false });
+  } catch (error) {
+    console.error('下载失败:', error);
+    toast.error('下载失败', error.message || '下载过程中发生错误');
+  } finally {
+    closeMenu();
+  }
 };
 
 // 文件操作：删除
@@ -658,6 +675,7 @@ const setDesigPath = (index) => {
 }
 
 .menu-item:hover {
+  border-radius: var(--card-border-radius);
   background-color: var(--hover-bg);
 }
 

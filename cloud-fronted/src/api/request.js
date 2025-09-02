@@ -29,6 +29,11 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   response => {
+    // 如果是二进制数据，直接返回
+    if (response.config.responseType === 'blob') {
+      return response;
+    }
+
     const res = response.data
 
     // 根据业务状态码处理（示例）
