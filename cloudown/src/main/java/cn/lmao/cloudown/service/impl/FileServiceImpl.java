@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 import cn.lmao.cloudown.service.ThumbnailService;
 import org.slf4j.Logger;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -277,18 +278,9 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public File downloadFile(Long fileId) {
-        log.debug("下载文件: {}", fileId);
-        File file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
-        log.debug("下载文件成功");
-        return file;
-    }
-
-    @Override
-    public void deleteFile(Long fileId) {
+    public void deleteFile(User user, Long fileId) {
         log.debug("删除文件: {}", fileId);
-        File file = fileRepository.findById(fileId)
+        File file = fileRepository.findByUserAndId(user, fileId)
                 .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
         file.setStatus(FileStatus.DELETED);
         fileRepository.save(file);
@@ -319,7 +311,7 @@ public class FileServiceImpl implements FileService {
                     String type = FileTypeChecker.getFileCategory(FileTypeChecker.getFileTypeFromName(file.getName()));
                     switch (category) {
                         case "my-files":
-                            return getFile(file.getId()).getRelativePath().equals(path);
+                            return getFile(file.getId()).getRelativePath().equals(path) && file.getStatus() == FileStatus.ACTIVE;
                         case "trash":
                             return file.getStatus() == FileStatus.DELETED;
                         default:
@@ -361,12 +353,12 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public Resource downloadFile(User user, String path) throws IOException {
-        log.info("开始下载文件: path={}, userId={}", path, user.getId());
+    public Resource downloadFile(User user, Long fileId, String fileName) throws IOException {
+        log.debug("开始下载文件: filename={}, userId={}", fileName, user.getId());
         
         try {
             // 在数据库中查找文件
-            File fileEntity = fileRepository.findByUserAndRelativePath(user, path)
+            File fileEntity = fileRepository.findByUserAndId(user, fileId)
                 .orElseThrow(() -> new CustomException(ErrorOperationStatus.FILE_NOT_FOUND));
 
             // 检查文件类型
@@ -383,17 +375,17 @@ public class FileServiceImpl implements FileService {
             }
 
             // 创建文件资源
-            org.springframework.core.io.Resource resource = new org.springframework.core.io.FileSystemResource(filePath.toFile());
+            Resource resource = new FileSystemResource(filePath.toFile());
             
             if (!resource.exists()) {
                 throw new CustomException(ErrorOperationStatus.FILE_NOT_FOUND);
             }
 
-            log.info("文件下载准备完成: {}", fileEntity.getName());
+            log.debug("文件下载准备完成: {}", fileEntity.getName());
             return resource;
 
         } catch (Exception e) {
-            log.error("文件下载失败: path={}, error={}", path, e.getMessage(), e);
+            log.error("文件下载失败: filename={}, error={}", fileName, e.getMessage(), e);
             throw new CustomException(ErrorOperationStatus.FILE_DOWNLOAD_FAIL);
         }
     }

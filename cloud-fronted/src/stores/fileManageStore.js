@@ -55,41 +55,50 @@ const useFileManageStore = defineStore('fileManage', () => {
 
   const downloadFile = async (file) => {
     try {
-      // 获取当前完整路径
-      const currentPath = pathStore.breadcrumbPath
-        .map(item => pathStore.getActiveElement(item).label)
-        .join('/');
-      
-      const filePath = `${currentPath}/${file.name}`.replace(/^\/+/, '');
-      
       // 调用下载API
       const response = await fileApi.downloadFile(file.id, file.name);
-      
+
       // 创建Blob对象
       const blob = new Blob([response.data], {
         type: response.headers['content-type']
       });
-      
+
       // 创建下载链接
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = file.name;
-      
+
       // 添加到页面并触发点击
       document.body.appendChild(link);
       link.click();
-      
+
       // 清理
       window.URL.revokeObjectURL(downloadUrl);
       document.body.removeChild(link);
-      
+
       return true;
     } catch (err) {
       console.error('下载文件失败:', err);
       throw err;
     }
   };
+
+  const deleteFile = async (file) => {
+    try {
+      console.log("delete fileId:", file.id);
+      const response = await fileApi.deleteFile(file.id);
+      if (response.code === 200) {
+        console.log('文件删除成功', response.data);
+        getFileList(); // 刷新文件列表
+        return true;
+      } else {
+        console.error('文件删除失败', response.message);
+      }
+    } catch (err) {
+      console.error('文件删除失败', err);
+    }
+  }
 
   return {
     fileList,
@@ -99,6 +108,7 @@ const useFileManageStore = defineStore('fileManage', () => {
     createFolder,
     createTextFile,
     downloadFile,
+    deleteFile
   }
 })
 

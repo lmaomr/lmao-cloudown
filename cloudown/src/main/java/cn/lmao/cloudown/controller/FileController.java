@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -49,13 +50,26 @@ public class FileController {
             @RequestParam(value = "category", defaultValue = "my-files") String category,
             @RequestParam(value = "sort", defaultValue = "time-desc") String sort) {
         User user = getUserFromToken();
-
-        log.info("接收到获取文件列表请求: path={}, category={} sort={}, email={}", path, category, sort, user.getNickname());
-
-        List<File> files = fileService.getFileList(user, path, category, sort);
-
-        log.info("文件列表获取成功: path={}, fileCount={}, email={}", path, files.size(), user.getEmail());
-        return ApiResponse.success(files);
+        log.info("用户: {} 请求获取文件列表: path={}, category={}, sort={}",
+                user.getNickname(), path, category, sort);
+        try {
+            if (StringUtils.isBlank(path)) {
+                return ApiResponse.exception(ErrorOperationStatus.INVALID_PATH);
+            }
+            List<File> files = fileService.getFileList(user, path, category, sort);
+            log.info("文件列表获取成功: path={}, fileCount={}, email={}", path, files.size(), user.getEmail());
+            return ApiResponse.success(files);
+        } catch (CustomException e) {
+            log.warn("获取文件列表参数错误: {}", e.getMessage());
+            return ApiResponse.exception(e);
+        } catch (IllegalArgumentException e) {
+            log.warn("获取文件列表参数错误: {}", e.getMessage());
+            return ApiResponse.error(400, e.getMessage());
+        } catch (Exception e) {
+            log.error("获取文件列表失败: path={}, email={}, error={}",
+                    path, user.getEmail(), e.getMessage(), e);
+            return ApiResponse.exception(ErrorOperationStatus.SYSTEM_ERROR);
+        }
     }
 
     @GetMapping("/check-upload")
@@ -74,10 +88,8 @@ public class FileController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("index") int chunkIndex,
             @RequestParam("totalChunks") int totalChunks) {
-
         long startTime = System.currentTimeMillis();
         String threadName = Thread.currentThread().getName();
-
         try {
             // 参数验证
             if (StringUtils.isBlank(filename)) {
@@ -99,7 +111,6 @@ public class FileController {
                     user.getNickname(), filename, chunkIndex + 1, totalChunks, duration, threadName);
 
             return ApiResponse.success("分片上传成功");
-
         } catch (IllegalArgumentException e) {
             log.warn("参数错误: {}", e.getMessage());
             return ApiResponse.error(400, e.getMessage());
@@ -117,11 +128,9 @@ public class FileController {
             @RequestParam("size") Long size,
             @RequestParam("chunksCount") int chunksCount,
             @RequestParam("path") String path) {
-
         long startTime = System.currentTimeMillis();
         log.info("收到文件合并请求: filename={}, size={}字节, chunksCount={}, path={}",
                 filename, size, chunksCount, path);
-
         try {
             // 参数验证
             if (chunksCount <= 0) {
@@ -169,7 +178,8 @@ public class FileController {
     public ApiResponse<String> createFolder(
             @RequestParam String folderName,
             @RequestParam String path) {
-        
+        User user = getUserFromToken();
+        log.info("用户: {} 请求创建文件夹: {}, 路径: {}", user.getNickname(), folderName, path);
         try {
             // 参数验证
             if (StringUtils.isBlank(folderName)) {
@@ -179,22 +189,19 @@ public class FileController {
                 return ApiResponse.exception(ErrorOperationStatus.INVALID_PATH);
             }
 
-            User user = getUserFromToken();
-            log.info("用户: {} 请求创建文件夹: {}, 路径: {}", user.getNickname(), folderName, path);
-
             // 调用服务层创建文件夹
             fileService.createFolder(user, folderName, path);
-            
+
             log.info("用户: {} 创建文件夹成功: {}", user.getNickname(), folderName);
             return ApiResponse.success("文件夹创建成功！");
-        } catch (CustomException e){
+        } catch (CustomException e) {
             log.warn("创建文件夹参数错误: {}", e.getMessage());
             return ApiResponse.exception(e);
         } catch (IllegalArgumentException e) {
             log.warn("创建文件夹参数错误: {}", e.getMessage());
             return ApiResponse.error(400, e.getMessage());
         } catch (Exception e) {
-            log.error("创建文件夹失败: folderName={}, path={}, error={}", 
+            log.error("创建文件夹失败: folderName={}, path={}, error={}",
                     folderName, path, e.getMessage(), e);
             return ApiResponse.exception(ErrorOperationStatus.FOLDER_CREATE_FAILED);
         }
@@ -205,7 +212,7 @@ public class FileController {
             @RequestParam String fileName,
             @RequestParam String path,
             @RequestParam(required = false) String content) {
-        
+        log.info("收到创建文件请求: fileName={}, path={}", fileName, path);
         try {
             // 参数验证
             if (StringUtils.isBlank(fileName)) {
@@ -220,15 +227,15 @@ public class FileController {
 
             // 调用服务层创建文件
             fileService.createFile(user, fileName, path, content);
-            
+
             log.info("用户: {} 创建文件成功: {}", user.getNickname(), fileName);
             return ApiResponse.success("文件创建成功！");
-            
+
         } catch (IllegalArgumentException e) {
             log.warn("创建文件参数错误: {}", e.getMessage());
             return ApiResponse.error(400, e.getMessage());
         } catch (Exception e) {
-            log.error("创建文件失败: fileName={}, path={}, error={}", 
+            log.error("创建文件失败: fileName={}, path={}, error={}",
                     fileName, path, e.getMessage(), e);
             return ApiResponse.exception(ErrorOperationStatus.FILE_CREATE_FAILED);
         }
@@ -236,38 +243,51 @@ public class FileController {
 
     /**
      * 下载文件
+     * 
      * @param path 文件路径
      * @return 文件内容
      */
     @GetMapping("/download")
     public ResponseEntity<Resource> download(
-            @RequestParam String fileId,
+            @RequestParam Long fileId,
             @RequestParam String fileName) {
+        User user = getUserFromToken();
+        log.info("用户: {} 请求下载文件: fileId={}, fileName={}", user.getNickname(), fileId, fileName);
         try {
-            if (fileId.isEmpty()&&fileName.isEmpty()) {
+            if (fileId == null && fileName.isEmpty()) {
                 throw new IllegalArgumentException("文件ID和文件名不能为空");
             }
 
-            User user = getUserFromToken();
-            log.info("用户: {} 请求下载文件名: {}", user.getNickname(), fileName);
-
             // 调用服务层获取文件
-            Resource resource = fileService.downloadFile(user, fileId);
-            
+            Resource resource = fileService.downloadFile(user, fileId, fileName);
+
             // 设置响应头
             return ResponseEntity.ok()
-                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, 
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
                             "attachment; filename=\"" + java.net.URLEncoder.encode(fileName, "UTF-8") + "\"")
-                    .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, 
+                    .header(org.springframework.http.HttpHeaders.CONTENT_TYPE,
                             org.springframework.http.MediaType.APPLICATION_OCTET_STREAM_VALUE)
                     .body(resource);
-
         } catch (IllegalArgumentException e) {
             log.warn("下载文件参数错误: {}", e.getMessage());
             throw new CustomException(ErrorOperationStatus.INVALID_PATH);
         } catch (Exception e) {
             log.error("下载文件失败: filename={}, error={}", fileName, e.getMessage(), e);
             throw new CustomException(ErrorOperationStatus.FILE_DOWNLOAD_FAIL);
+        }
+    }
+
+    @DeleteMapping("/delete")
+    public ApiResponse<String> deleteFile(@RequestParam Long fileId) {
+        User user = getUserFromToken();
+        log.info("用户: {} 请求删除文件: fileId={}", user.getNickname(), fileId);
+        try {
+            fileService.deleteFile(user, fileId);
+            log.info("用户: {} 删除文件成功: fileId={}", user.getNickname(), fileId);
+            return ApiResponse.success("文件删除成功");
+        } catch (Exception e) {
+            log.error("删除文件失败: fileId={}, error={}", fileId, e.getMessage(), e);
+            return ApiResponse.exception(ErrorOperationStatus.FILE_DELETE_FAIL);
         }
     }
 

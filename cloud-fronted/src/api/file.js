@@ -50,7 +50,7 @@ export const mergeFileChunks = (filename, size, chunksCount, path) => {
 }
 
 //上传头像
-const uploadAvatar = (file) => {
+export const uploadAvatar = (file) => {
   const formData = new FormData()
   formData.append('avatar', file)
   return request({
@@ -71,7 +71,7 @@ export const createFolder = (folderName, path) => {
   })
 }
 
-const createTextFile = (fileName, path) => {
+export const createTextFile = (fileName, path) => {
   return request({
     url: '/api/file/createFile',
     method: 'post',
@@ -91,6 +91,23 @@ export const downloadFile = (fileId, fileName) => {
   })
 }
 
+export const fileRename = (fileId, newName) => {
+  return request({
+    url: '/api/file/rename',
+    method: 'post',
+    params: { fileId, newName },
+  })
+}
+
+export const deleteFile = (fileId) => {
+  console.log("delete api fileId:", fileId);
+  return request({
+    url: '/api/file/delete',
+    method: 'delete',
+    params: { fileId },
+  })
+}
+
 export default {
   getFileList,
   checkUploadTask,
@@ -99,5 +116,7 @@ export default {
   uploadAvatar,
   createFolder,
   createTextFile,
-  downloadFile
+  downloadFile,
+  deleteFile,
+  fileRename,
 }

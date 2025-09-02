@@ -123,7 +123,6 @@ const selectedFileIndex = ref(-1);
 
 // 右键菜单：上传文件
 const handleUploadFile = () => {
-  closeMenu();
   nextTick(() => fileInputRef.value && fileInputRef.value.click());
 };
 const onFileInputChange = async (e) => {
@@ -137,7 +136,6 @@ const onFileInputChange = async (e) => {
 
 // 右键菜单：上传目录
 const handleUploadFolder = () => {
-  closeMenu();
   nextTick(() => folderInputRef.value && folderInputRef.value.click());
 };
 
@@ -154,14 +152,12 @@ const onFolderInputChange = async (e) => {
 
 // 右键菜单：刷新
 const handleRefresh = () => {
-  closeMenu();
   refreshFileList();
 };
 
 // 文件操作：重命名
 const handleRename = () => {
   console.log('重命名文件:', selectedFile.value);
-  closeMenu();
   // 这里实现重命名逻辑
 };
 
@@ -175,38 +171,55 @@ const handleDownload = async () => {
     toast.warning('无法下载文件夹', '请选择一个文件进行下载');
     return;
   }
-
+  const toastId = toast.loading('正在准备下载文件...', '请稍候');
   try {
     await loadingStore.withLoading(async () => {
-      await fileManageStore.downloadFile(selectedFile.value);
-      toast.success('下载成功', `文件 ${selectedFile.value.name} 已开始下载`);
+      await fileManageStore.downloadFile(selectedFile.value).then(success => {
+        if (success) {
+          toast.success('下载已开始', `文件 ${selectedFile.value.name} 正在下载`);
+        }
+      });
     }, { text: '正在准备下载...', fullscreen: false });
   } catch (error) {
     console.error('下载失败:', error);
     toast.error('下载失败', error.message || '下载过程中发生错误');
   } finally {
-    closeMenu();
+    toast.closeLoading(toastId);
   }
 };
 
 // 文件操作：删除
-const handleDelete = () => {
+const handleDelete = async () => {
   console.log('删除文件:', selectedFile.value);
-  closeMenu();
-  // 这里实现删除逻辑
+  if (!selectedFile.value) {
+    return;
+  }
+  const toastId = toast.loading('正在删除文件...', '请稍候');
+  try {
+    await loadingStore.withLoading(async () => {
+      await fileManageStore.deleteFile(selectedFile.value).then(success => {
+        if (success) {
+          toast.success('删除成功', `文件 ${selectedFile.value.name} 已删除`);
+        }
+      });
+    }, { text: '正在删除...', fullscreen: false });
+  } catch (error) {
+    console.error('删除失败:', error);
+    toast.error('删除失败', error.message || '删除过程中发生错误');
+  } finally {
+    toast.closeLoading(toastId);
+  }
 };
 
 // 文件操作：复制
 const handleCopy = () => {
   console.log('复制文件:', selectedFile.value);
-  closeMenu();
   // 这里实现复制逻辑
 };
 
 // 文件操作：剪切
 const handleCut = () => {
   console.log('剪切文件:', selectedFile.value);
-  closeMenu();
   // 这里实现剪切逻辑
 };
 
