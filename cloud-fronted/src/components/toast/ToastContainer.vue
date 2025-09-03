@@ -33,7 +33,8 @@ const containerStyle = computed(() => ({
 
 // 添加 Toast
 const addToast = (type, title, message, duration = 3000, id) => {
-  id = id || Date.now().toString()
+  id = id || Date.now().toString(36) + Math.random().toString(36).substring(2,9)
+  console.log(id)
   toasts.value.push({ id, type, title, message })
   if (toasts.value.length > 6) {
     toasts.value.shift(); // 移除最早的通知

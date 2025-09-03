@@ -189,6 +189,10 @@ const closeSearch = () => {
   searchQuery.value = '';
 }
 
+const setting = () => {
+  toast.info("设置", "正在开发中，敬请期待！");
+}
+
 </script>
 
 <template>
@@ -234,7 +238,7 @@ const closeSearch = () => {
         <button class="theme-toggle" title="切换主题" aria-label="切换明暗主题" @click="settingStore.toggleTheme">
           <i :class="!settingStore.isDarkTheme ? 'fas fa-moon' : 'fas fa-sun'"></i>
         </button>
-        <button class="setting-btn" title="设置" aria-label="设置"><i class="fas fa-cog"></i></button>
+        <button class="setting-btn" @click="setting" title="设置" aria-label="设置"><i class="fas fa-cog"></i></button>
         <div class="user-avatar" @click="handleOpenUserInfoPanel">
           <img v-if="userStore.user.avatarUrl" :src="userStore.user.avatarUrl" alt="用户头像" />
           <span v-else>{{ userStore.user.nickname?.substring(0, 1) || 'u' }}</span>
