@@ -291,6 +291,24 @@ public class FileController {
         }
     }
 
+    @GetMapping("/search")
+    public ApiResponse<List<File>> searchFiles(@RequestParam String searchQuery) {
+        User user = getUserFromToken();
+        log.info("用户: {} 请求搜索文件: query={}", user.getNickname(), searchQuery);
+        try {
+            if (StringUtils.isBlank(searchQuery) || searchQuery.trim().isEmpty()) {
+            log.error("搜索查询不能为空");
+            return ApiResponse.exception(ErrorOperationStatus.INVALID_FILENAME);
+        }
+            List<File> files = fileService.searchFiles(user, searchQuery);
+            log.info("用户: {} 搜索文件成功: query={}, resultCount={}", user.getNickname(), searchQuery, files.size());
+            return ApiResponse.success(files);
+        } catch (Exception e) {
+            log.error("搜索文件失败: query={}, error={}", searchQuery, e.getMessage(), e);
+            return ApiResponse.exception(ErrorOperationStatus.SYSTEM_ERROR);
+        }
+    }
+
     private User getUserFromToken() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userService.getUserInfo(email);

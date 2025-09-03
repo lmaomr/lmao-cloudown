@@ -97,10 +97,10 @@
   --z-index-menu: 1100;
   /* 提示框（应覆盖 dropdown） */
   --z-index-tooltip: 1200;
-  /* 弹窗 */
-  --z-index-modal: 1300;
   /* 弹窗遮罩 */
-  --z-index-backdrop: 1400;
+  --z-index-backdrop: 1300;
+  /* 弹窗 */
+  --z-index-modal: 1400;
   /* 全局通知 */
   --z-index-toast: 1500;
   /* 全屏加载 */

@@ -7,7 +7,7 @@ import { useUserStore } from '@/stores/userManageStore';
 // 创建 axios 实例
 const request = axios.create({
   baseURL: config.apiBaseUrl, // 从配置文件获取 API 基础路径
-  timeout: 5000 // 超时时间
+  timeout: 8000 // 超时时间
 })
 
 // 请求拦截器
@@ -42,7 +42,7 @@ request.interceptors.response.use(
         toast.warning('有点问题！', res.msg || '服务器异常')
       }else {
         toast.error('出错啦！', res.msg || '服务器异常')
-      } 
+      }
       return Promise.reject(new Error(res.msg || 'Error'))
     } else {
       return res // 返回实际需要的数据
@@ -80,7 +80,11 @@ request.interceptors.response.use(
       return Promise.reject(error); // 2秒内不重复提示
     }
 
-    toast.error(res.title, res.message);
+    if (res.message === 'Network Error') {
+      toast.error(res.title, "与服务器断开连接");
+    } else {
+      toast.error(res.title, res.message);
+    }
 
     // 记录本次错误时间，并标记当前请求已显示错误
     localStorage.setItem('lastError', JSON.stringify(new Date()));

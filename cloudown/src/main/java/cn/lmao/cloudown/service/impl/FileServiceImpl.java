@@ -296,6 +296,24 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    public List<File> searchFiles(User user, String searchQuery) {
+        if (user == null) {
+            log.error(ErrorOperationStatus.USER_NOT_FOUND.getMsg());
+            throw new CustomException(ErrorOperationStatus.USER_NOT_FOUND);
+        }
+        log.debug("搜索文件: 用户ID={}, 查询={}", user.getId(), searchQuery);
+
+        // 获取用户所有文件
+        List<File> matchedFiles = fileRepository.searchByUserAndName(user, searchQuery)
+                .stream()
+                .filter(file -> file.getStatus() == FileStatus.ACTIVE)
+                .collect(Collectors.toList());
+        log.debug("用户搜索匹配文件数: {}", matchedFiles.size());
+
+        return matchedFiles;
+    }
+
+    @Override
     public List<File> getFileList(User user, String path, String category, String sort) {
         if (user == null) {
             log.error(ErrorOperationStatus.USER_NOT_FOUND.getMsg());

@@ -108,6 +108,14 @@ export const deleteFile = (fileId) => {
   })
 }
 
+export const searchFiles = (searchQuery) => {
+  return request({
+    url: '/api/file/search',
+    method: 'get',
+    params: { searchQuery },
+  })
+}
+
 export default {
   getFileList,
   checkUploadTask,
@@ -119,4 +127,5 @@ export default {
   downloadFile,
   deleteFile,
   fileRename,
+  searchFiles,
 }

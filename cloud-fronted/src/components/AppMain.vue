@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, inject } from 'vue';
+import { ref, onMounted, computed, inject, watch, nextTick } from 'vue';
 import useSettingStore from '@/stores/settingStore';
 import usePathStore from '@/stores/pathStore';
 import FileList from '@/components/main/FileList.vue';
@@ -138,21 +138,55 @@ defineEmits(['toggleSidebar']);
 
 const searchQuery = ref('');
 
-const performSearch = () => {
+const performSearch = async () => {
   const query = searchQuery.value.trim();
   if (query === '') {
     pathStore.isSearchMode = false;
-    fileManageStore.getFileList();
+    pathStore.searchQuery = '';
     return;
   }
-  pathStore.isSearchMode = true;
-  fileManageStore.searchFiles(query);
+  const lodingId = toast.loading("搜索中...", "请稍候");
+  try {
+    pathStore.searchQuery = searchQuery.value;
+    pathStore.isSearchMode = true;
+    closeSearch();
+    await fileManageStore.searchFiles(query);
+    toast.success("搜索完成", `为你找到 ${fileManageStore.fileList.length} 个相关文件`);
+  } catch (error) {
+    console.error('搜索失败:', error);
+    toast.error("搜索失败", "请稍后重试");
+  } finally {
+    toast.closeLoading(lodingId);
+  }
 }
 
 const inputing = () => {
   if (searchQuery.value.trim() === '') {
     pathStore.isSearchMode = false;
   }
+}
+
+watch(() => pathStore.isSearchMode, (newVal) => {
+  if (!newVal) {
+    searchQuery.value = '';
+  }
+});
+
+const isExpanded = ref(false);
+const searchInputRef = ref(null);
+const handleExpand = async () => {
+  isExpanded.value = true;
+   // 等待 DOM 更新（确保输入框已经渲染）
+  await nextTick();
+
+  // 聚焦输入框
+  searchInputRef.value?.focus();
+}
+
+const closeSearch = () => {
+  if (!isExpanded.value) return;
+  isExpanded.value = false;
+  searchQuery.value = '';
 }
 
 </script>
@@ -189,10 +223,12 @@ const inputing = () => {
           <input type="file" @change="selectedFile" id="file-input" multiple class="file-input" />
           <input type="file" id="folder-input" webkitdirectory directory multiple class="file-input">
         </div>
-        <div class="search-box">
+        <div class="search-box" :class="{ expand: isExpanded }" v-click-outside="closeSearch" @click="handleExpand">
           <i class="fas fa-search"></i>
-          <input type="text" placeholder="搜索你的文件" aria-label="搜索文件" @keyup.enter="performSearch" v-model="searchQuery" @input="inputing"/>
+          <input type="text" placeholder="搜索你的文件" aria-label="搜索文件" @keyup.enter="performSearch" v-model="searchQuery"
+            @input="inputing" ref="searchInputRef"/>
         </div>
+        <div v-if="isExpanded" class="overlay" @click="closeSearch"></div>
       </div>
       <div class="header-right">
         <button class="theme-toggle" title="切换主题" aria-label="切换明暗主题" @click="settingStore.toggleTheme">
@@ -215,10 +251,7 @@ const inputing = () => {
       @close="handleClose()">
       <div class="modal-body">
         <label for="folderName" class="form-label">文件夹名称</label>
-        <input type="text"
-               class="form-input"
-               placeholder="请输入文件夹名称"
-               v-model="folderName">
+        <input type="text" class="form-input" placeholder="请输入文件夹名称" v-model="folderName">
         <div class="form-hint">文件夹名称不能包含特殊字符 \\ / : * ? " &lt; &gt;|</div>
       </div>
     </ModalBox>
@@ -226,10 +259,7 @@ const inputing = () => {
       @close="handleClose()">
       <div class="modal-body">
         <label for="fileName" class="form-label">文件名称</label>
-        <input type="text"
-               class="form-input"
-               placeholder="请输入文件名称"
-               v-model="textFileName">
+        <input type="text" class="form-input" placeholder="请输入文件名称" v-model="textFileName">
         <div class="form-hint">文件名称不能包含特殊字符 \\ / : * ? " &lt; &gt; |</div>
       </div>
     </ModalBox>
@@ -404,7 +434,6 @@ const inputing = () => {
   outline: none;
   color: var(--i-color);
   width: 100%;
-  font-size: 1rem;
 }
 
 .search-box input:focus {
@@ -414,6 +443,10 @@ const inputing = () => {
 .search-box:focus-within {
   background: var(--card-bg, white);
   box-shadow: 0 0 0 2px var(--focus-shadow);
+}
+
+.overlay {
+  display: none;
 }
 
 .header-right {
@@ -476,6 +509,10 @@ const inputing = () => {
     min-width: 29rem;
   }
 
+  .header-left {
+    gap: 0.6rem;
+  }
+
   .header-left button {
     min-width: 2.2rem;
     padding: 0.4rem;
@@ -489,6 +526,45 @@ const inputing = () => {
 
   .creat-btn span {
     display: none;
+  }
+
+  .search-box {
+    overflow: hidden;
+    background-color: transparent;
+  }
+
+  .search-box input {
+    width: 0;
+    transition: all 0.3s ease;
+  }
+
+  .expand {
+    position: absolute;
+    top: 1rem;
+    left: 0.4rem;
+    right: 0.4rem;
+    width: calc(100% - 0.8rem);
+    height: 3.9rem;
+    z-index: var(--z-index-modal);
+    background-color: var(--card-bg);
+    border-radius: var(--card-border-radius);
+    box-shadow: var(--shadow-md);
+  }
+
+  .expand input {
+    width: 100%;
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: var(--z-index-backdrop);
   }
 
   .header-right button {

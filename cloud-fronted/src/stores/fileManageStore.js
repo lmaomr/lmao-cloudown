@@ -11,13 +11,12 @@ const useFileManageStore = defineStore('fileManage', () => {
   const sortOptions = ref(safeLocalStorage.get('sortOptions') || 'time-desc');
 
   const getFileList = async () => {
-    try {
-      const response = await fileApi.getFileList(pathStore.getBreadcrumbPath(), pathStore.activeMenu.section, sortOptions.value);
-      fileList.value = response.data;
-      safeLocalStorage.set('fileList', JSON.stringify(fileList.value));
-    } catch (err) {
-      console.error('获取文件列表失败', err);
+    if (pathStore.isSearchMode) {
+      return;
     }
+    const response = await fileApi.getFileList(pathStore.getBreadcrumbPath(), pathStore.activeMenu.section, sortOptions.value);
+    fileList.value = response.data;
+    safeLocalStorage.set('fileList', JSON.stringify(fileList.value));
   };
 
   const setSortOptions = (options) => {
@@ -26,77 +25,73 @@ const useFileManageStore = defineStore('fileManage', () => {
   }
 
   const createFolder = async (folderName) => {
-    try {
-      const response = await fileApi.createFolder(folderName, pathStore.getBreadcrumbPath());
-      if (response.code === 200) {
-        console.log('文件夹创建成功', response.data);
-        getFileList(); // 刷新文件列表
-      } else {
-        console.error('文件夹创建失败', response.message);
-      }
-    } catch (err) {
-      console.error('文件夹创建异常', err);
+    const response = await fileApi.createFolder(folderName, pathStore.getBreadcrumbPath());
+    if (response.code === 200) {
+      console.log('文件夹创建成功', response.data);
+      getFileList(); // 刷新文件列表
+    } else {
+      console.error('文件夹创建失败', response.message);
     }
   };
 
   const createTextFile = async (fileName) => {
-    try {
-      const response = await fileApi.createTextFile(fileName, pathStore.getBreadcrumbPath());
-      if (response.code === 200) {
-        console.log('文本文档创建成功', response.data);
-        getFileList(); // 刷新文件列表
-      } else {
-        console.error('文本文档创建失败', response.message);
-      }
-    } catch (err) {
-      console.error('文本文档创建异常', err);
+    const response = await fileApi.createTextFile(fileName, pathStore.getBreadcrumbPath());
+    if (response.code === 200) {
+      console.log('文本文档创建成功', response.data);
+      getFileList(); // 刷新文件列表
+    } else {
+      console.error('文本文档创建失败', response.message);
     }
+
   };
 
   const downloadFile = async (file) => {
-    try {
-      // 调用下载API
-      const response = await fileApi.downloadFile(file.id, file.name);
+    // 调用下载API
+    const response = await fileApi.downloadFile(file.id, file.name);
 
-      // 创建Blob对象
-      const blob = new Blob([response.data], {
-        type: response.headers['content-type']
-      });
+    // 创建Blob对象
+    const blob = new Blob([response.data], {
+      type: response.headers['content-type']
+    });
 
-      // 创建下载链接
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = file.name;
+    // 创建下载链接
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = file.name;
 
-      // 添加到页面并触发点击
-      document.body.appendChild(link);
-      link.click();
+    // 添加到页面并触发点击
+    document.body.appendChild(link);
+    link.click();
 
-      // 清理
-      window.URL.revokeObjectURL(downloadUrl);
-      document.body.removeChild(link);
+    // 清理
+    window.URL.revokeObjectURL(downloadUrl);
+    document.body.removeChild(link);
 
-      return true;
-    } catch (err) {
-      console.error('下载文件失败:', err);
-      throw err;
-    }
+    return true;
   };
 
   const deleteFile = async (file) => {
-    try {
-      console.log("delete fileId:", file.id);
-      const response = await fileApi.deleteFile(file.id);
-      if (response.code === 200) {
-        console.log('文件删除成功', response.data);
-        getFileList(); // 刷新文件列表
-        return true;
-      } else {
-        console.error('文件删除失败', response.message);
-      }
-    } catch (err) {
-      console.error('文件删除失败', err);
+    console.log("delete fileId:", file.id);
+    const response = await fileApi.deleteFile(file.id);
+    if (response.code === 200) {
+      console.log('文件删除成功', response.data);
+      getFileList(); // 刷新文件列表
+      return true;
+    } else {
+      console.error('文件删除失败', response.message);
+    }
+  }
+
+  const searchFiles = async (searchQuery) => {
+    const response = await fileApi.searchFiles(searchQuery);
+    if (response.code === 200) {
+      fileList.value = response.data;
+      safeLocalStorage.set('fileList', JSON.stringify(fileList.value));
+      return true;
+    } else {
+      console.error('文件搜索失败', response.message);
+      return false;
     }
   }
 
@@ -108,7 +103,8 @@ const useFileManageStore = defineStore('fileManage', () => {
     createFolder,
     createTextFile,
     downloadFile,
-    deleteFile
+    deleteFile,
+    searchFiles
   }
 })
 

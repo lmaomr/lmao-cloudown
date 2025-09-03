@@ -6,6 +6,12 @@ import { safeLocalStorage } from '@/utils/storage';
 const usePathStore = defineStore('path', () => {
   // 是否处于搜索模式
   const isSearchMode = ref(false);
+  const searchQuery = ref('');
+
+  const exitSearchMode = () => {
+    isSearchMode.value = false;
+    searchQuery.value = '';
+  }
 
   const menuItems = ref([
     {
@@ -51,6 +57,7 @@ const usePathStore = defineStore('path', () => {
 
   // 设置当前激活的菜单项
   const setActiveMenu = (title, section) => {
+    exitSearchMode();
     activeMenu.value = { title: title, section: section };
     safeLocalStorage.set('activeMenu', JSON.stringify(activeMenu.value));
   };
@@ -120,6 +127,9 @@ const usePathStore = defineStore('path', () => {
     menuItems,
     activeMenu,
     breadcrumbPath,
+    isSearchMode,
+    searchQuery,
+    exitSearchMode,
     setActiveMenu,
     setDesigPath,
     setBreadcrumbPath,

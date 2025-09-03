@@ -39,5 +39,7 @@ public interface FileService {
     String uploadAvatar(User user, MultipartFile file) throws IOException, NoSuchAlgorithmException;
 
     Boolean updateFileName(Long fileId, String newFileName);
+
+    List<File> searchFiles(User user, String searchQuery);
 }
 

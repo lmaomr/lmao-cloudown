@@ -26,4 +26,24 @@ if (localStorage.getItem('darkTheme') === null) {
 // 初始化设备类型
 settingStore.detectDeviceType();
 
+// directives.js 或 main.js
+const clickOutside = {
+  beforeMount(el, binding) {
+    el.__ClickOutsideHandler__ = event => {
+      // 检查点击是否在元素内部
+      if (!(el === event.target || el.contains(event.target))) {
+        // 调用传递的方法
+        binding.value(event);
+      }
+    };
+    document.addEventListener('click', el.__ClickOutsideHandler__);
+  },
+  unmounted(el) {
+    document.removeEventListener('click', el.__ClickOutsideHandler__);
+  }
+};
+
+// 在 Vue 应用中注册指令
+app.directive('click-outside', clickOutside);
+
 app.mount('#app')

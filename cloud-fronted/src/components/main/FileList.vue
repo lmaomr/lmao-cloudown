@@ -37,6 +37,7 @@ const loadFileList = async () => {
     await fileManageStore.getFileList();
   } catch (error) {
     console.error('加载文件列表失败:', error);
+    toast.error('加载文件列表失败', error.message || '请稍后重试');
   } finally {
     isFileListLoading.value = false;
   }
@@ -82,6 +83,7 @@ const uploadFile = async (file) => {
     await fileManageStore.getFileList();
   } catch (error) {
     console.error('操作失败:', error);
+    toast.error('操作失败', error.message || '上传过程中发生错误');
   }
 };
 
@@ -104,6 +106,7 @@ const handleDrop = async (e) => {
     await fileManageStore.getFileList();
   } catch (error) {
     console.error('操作失败:', error);
+    toast.error('操作失败', error.message || '上传过程中发生错误');
   }
 };
 
@@ -278,6 +281,7 @@ watch(
     () => pathStore.activeMenu.section,
     () => pathStore.breadcrumbPath[pathStore.breadcrumbPath.length - 1]?.section,
     () => fileManageStore.sortOptions,
+    () => pathStore.isSearchMode,
   ],
   () => {
     loadFileList();
@@ -317,17 +321,38 @@ const setDesigPath = (index) => {
   refreshFileList();
 };
 
+// 计算属性来自动截断
+const truncatedSearchQuery = computed(() => {
+  const w = window.screen.width
+  const query = pathStore.searchQuery || '';
+  const maxLength = w / 60; // 设置最大长度
+
+  if (query.length <= maxLength) {
+    return query;
+  }
+
+  return query.substring(0, maxLength) + '...';
+});
+
 </script>
 
 <template>
   <div class="tool-bar">
     <div class="path-bar">
-      <div class="path-item" v-for="(item, index) in pathStore.breadcrumbPath" :key="index">
+      <div class="path-item"
+        v-for="(item, index) in pathStore.isSearchMode ? pathStore.breadcrumbPath.slice(0, 1) : pathStore.breadcrumbPath"
+        :key="index">
         <span class="path-item-label" @click="setDesigPath(index)">
           <i class="fas fa-home" v-if="pathStore.getActiveElement(item).icon === 'fas fa-home'"></i>
           {{ pathStore.getActiveElement(item).label || item.path }}
         </span>
-        <i class="fas fa-chevron-right" v-show="index < pathStore.breadcrumbPath.length - 1"></i>
+        <i class="fas fa-chevron-right"
+          v-show="index < pathStore.breadcrumbPath.length - 1 || pathStore.isSearchMode"></i>
+        <span v-if="pathStore.searchQuery" class="search-result">搜索结果："{{ truncatedSearchQuery }}"
+          <button class="exit-search" title="退出搜索" @click="pathStore.exitSearchMode()">
+            <i class="fas fa-times"></i>
+          </button>
+        </span>
       </div>
     </div>
     <div class="tool-left">
@@ -794,7 +819,6 @@ i.submenu-indicator {
 .path-bar {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
   padding: 0 1.25rem;
   flex: 1;
 }
@@ -886,10 +910,11 @@ svg.MuiSvgIcon-root {
   display: none;
 }
 
-.path-item-label {
+.path-item-label,
+.search-result {
   color: var(--i-color);
   font-size: 0.875rem;
-  margin: 0 4px;
+  margin: 0 8.75px;
 }
 
 .path-item-label:hover {
@@ -900,6 +925,26 @@ svg.MuiSvgIcon-root {
 .path-item-label+i {
   color: var(--text-secondary);
   font-size: 0.7rem;
+}
+
+.exit-search {
+  margin-left: 8px;
+  color: var(--danger-color);
+}
+
+.exit-search {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.exit-search:focus {
+  outline: none;
+  outline-offset: 0;
 }
 
 .file-content {
