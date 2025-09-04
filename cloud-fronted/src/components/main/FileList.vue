@@ -7,6 +7,8 @@ import { useUploadStore } from '@/stores/uploadStore.js'
 import { useLoadingStore } from '@/stores/loadingStore'
 import { formatFileSize, formatDate, formatFileType } from '@/utils/fomatUtil'
 import toast from '@/utils/toast.js'
+// 导入新创建的组件
+import ContextMenu from '@/components/main/ContextMenu.vue'
 
 const pathStore = usePathStore()
 const fileManageStore = useFileManageStore()
@@ -113,11 +115,6 @@ const handleDrop = async (e) => {
   }
 }
 
-// 右键菜单状态
-const isMenuOpen = ref(false)
-const menuLeft = ref(0)
-const menuTop = ref(0)
-
 // 右键菜单相关
 const fileInputRef = ref(null)
 const folderInputRef = ref(null)
@@ -125,24 +122,113 @@ const folderInputRef = ref(null)
 // 当前选中的文件/文件夹
 const selectedFiles = ref([])
 
+const contextMenuState = ref({
+  isOpen: false,
+  left: 0,
+  top: 0
+})
+
+// 打开菜单
+const openMenu = (e, file = null) => {
+  e.preventDefault()
+  e.stopPropagation()
+
+  const w = window.screen.width
+  const h = window.screen.height
+
+  contextMenuState.value.left = e.clientX
+  contextMenuState.value.top = e.clientY
+
+  if (w - e.clientX < 210) {
+    contextMenuState.value.left = w - 210
+  }
+  if (h - e.clientY < 450) {
+    contextMenuState.value.top = h - 470
+  }
+
+  // 设置菜单类型和选中的文件
+  if (file) {
+    if (selectedFiles.value.indexOf(file) === -1) {
+      selectedFiles.value = [file]
+    }
+  }
+  contextMenuState.value.isOpen = true
+}
+
+// 关闭菜单
+const closeContextMenu = () => {
+  contextMenuState.value.isOpen = false
+}
+
 // 右键菜单：上传文件
-const handleUploadFile = () => {
-  closeMenu()
+const handleMenuUploadFile = () => {
+  closeContextMenu()
   nextTick(() => fileInputRef.value && fileInputRef.value.click())
 }
 
 const onFileInputChange = async (e) => {
-  const file = e.target.files[0]
-  if (file) {
-    await uploadFile(file)
-    await fileManageStore.getFileList()
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
+
+  const loadingId = toast.loading('开始上传文件...', `0/${files.length} 个文件`);
+  let completedCount = 0;
+
+  try {
+    // 创建所有上传任务的Promise
+    const uploadPromises = Array.from(files).map((file) =>
+      uploadFile(file)
+        .then(() => {
+          completedCount++;
+          toast.updateLoading(loadingId, '上传中...', `${completedCount}/${files.length} 完成`);
+          return { success: true, file };
+        })
+        .catch(error => {
+          completedCount++;
+          console.error(`文件 ${file.name} 上传失败:`, error);
+          toast.updateLoading(loadingId, '上传中...', `${completedCount}/${files.length} 完成 (有文件失败)`);
+          return { success: false, file, error };
+        })
+    );
+
+    // 等待所有上传任务完成（无论成功失败）
+    const results = await Promise.allSettled(uploadPromises);
+
+    // 统计结果
+    const successfulUploads = results.filter(result =>
+      result.status === 'fulfilled' && result.value.success
+    );
+    const failedUploads = results.filter(result =>
+      result.status === 'fulfilled' && !result.value.success
+    );
+
+    toast.closeLoading(loadingId);
+
+    // 显示最终结果
+    if (failedUploads.length === 0) {
+      toast.success('上传成功', `所有 ${successfulUploads.length} 个文件上传完成`);
+    } else if (successfulUploads.length > 0) {
+      toast.warning('部分成功', `成功: ${successfulUploads.length}, 失败: ${failedUploads.length}`);
+    } else {
+      toast.error('全部失败', '所有文件上传都失败了');
+    }
+
+    // 只要有成功的文件就刷新列表
+    if (successfulUploads.length > 0) {
+      await fileManageStore.getFileList();
+    }
+
+  } catch (error) {
+    toast.closeLoading(loadingId);
+    console.error('上传过程错误:', error);
+    toast.error('上传失败', '上传过程中发生错误');
+  } finally {
+    e.target.value = '';
   }
-  e.target.value = ''
 }
 
 // 右键菜单：上传目录
-const handleUploadFolder = () => {
-  closeMenu()
+const handleMenuUploadFolder = () => {
+  closeContextMenu()
   nextTick(() => folderInputRef.value && folderInputRef.value.click())
 }
 
@@ -158,16 +244,16 @@ const onFolderInputChange = async (e) => {
 }
 
 // 右键菜单：刷新
-const handleRefresh = () => {
+const handleMenuRefresh = () => {
   refreshFileList()
-  closeMenu()
+  closeContextMenu()
 }
 
 // 文件操作：重命名
 const handleRename = () => {
   console.log('重命名文件:', selectedFiles.value)
   // 这里实现重命名逻辑
-  closeMenu()
+  closeContextMenu();
 }
 
 // 文件操作：下载
@@ -197,7 +283,7 @@ const handleDownload = async () => {
     }
 
     // 批量下载文件
-    const downloadPromises = downloadableFiles.map(f=>
+    const downloadPromises = downloadableFiles.map(f =>
       fileManageStore.downloadFile(f).catch((error) => {
         // 单个文件下载失败不会影响其他文件
         console.error(`下载文件 ${f.name} 失败:`, error)
@@ -228,7 +314,7 @@ const handleDownload = async () => {
     toast.error('下载失败', error.message || '下载过程中发生未知错误')
   } finally {
     toast.closeLoading(toastId)
-    closeMenu()
+    closeContextMenu();
   }
 }
 
@@ -263,7 +349,7 @@ const handleDelete = async () => {
     )
     const successCount = successResults.length
     const failedCount = results.length - successCount
-    console.log('成功的各式各样'+successCount);
+    console.log('成功的各式各样' + successCount);
     console.log(failedCount)
 
     // 显示总结信息
@@ -280,7 +366,7 @@ const handleDelete = async () => {
     toast.error('删除失败', error.message || '删除过程中发生未知错误')
   } finally {
     toast.closeLoading(toastId)
-    closeMenu()
+    closeContextMenu();
     // 清空选中状态
     selectedFiles.value = []
   }
@@ -290,48 +376,16 @@ const handleDelete = async () => {
 const handleCopy = () => {
   console.log('复制文件:', selectedFiles.value)
   // 这里实现复制逻辑
-  closeMenu()
+  closeContextMenu();
 }
 
 // 文件操作：剪切
 const handleCut = () => {
   console.log('剪切文件:', selectedFiles.value)
   // 这里实现剪切逻辑
-  closeMenu()
+  closeContextMenu();
 }
 
-// 打开右键菜单
-const openMenu = (e, file = null) => {
-  e.preventDefault()
-  e.stopPropagation()
-
-  const w = window.screen.width
-  const h = window.screen.height
-
-  menuLeft.value = e.clientX
-  menuTop.value = e.clientY
-
-  if (w - e.clientX < 210) {
-    menuLeft.value = w - 210
-  }
-  if (h - e.clientY < 450) {
-    menuTop.value = h - 470
-  }
-
-  // 设置菜单类型和选中的文件
-  if (file) {
-    if (selectedFiles.value.indexOf(file) === -1) {
-      selectedFiles.value = [file]
-    }
-    console.log('选中的文件:', file)
-  }
-  isMenuOpen.value = true
-}
-
-// 关闭右键菜单
-const closeMenu = () => {
-  isMenuOpen.value = false
-}
 
 watch(
   [
@@ -392,7 +446,7 @@ const truncatedSearchQuery = computed(() => {
 })
 
 const handleSelectFile = (file, event = {}) => {
-  closeMenu()
+  closeContextMenu();
   event.stopPropagation()
   if (event && event.ctrlKey) {
     // 多选
@@ -420,23 +474,16 @@ const includesFile = (file) => {
 <template>
   <div class="tool-bar">
     <div class="path-bar">
-      <div
-        class="path-item"
-        v-for="(item, index) in pathStore.isSearchMode
-          ? pathStore.breadcrumbPath.slice(0, 1)
-          : pathStore.breadcrumbPath"
-        :key="index"
-      >
+      <div class="path-item" v-for="(item, index) in pathStore.isSearchMode
+        ? pathStore.breadcrumbPath.slice(0, 1)
+        : pathStore.breadcrumbPath" :key="index">
         <span class="path-item-label" @click="setDesigPath(index)">
           <i class="fas fa-home" v-if="pathStore.getActiveElement(item).icon === 'fas fa-home'"></i>
           {{ pathStore.getActiveElement(item).label || item.path }}
         </span>
-        <i
-          class="fas fa-chevron-right"
-          v-show="index < pathStore.breadcrumbPath.length - 1 || pathStore.isSearchMode"
-        ></i>
-        <span v-if="pathStore.searchQuery" class="search-result"
-          >搜索结果："{{ truncatedSearchQuery }}"
+        <i class="fas fa-chevron-right"
+          v-show="index < pathStore.breadcrumbPath.length - 1 || pathStore.isSearchMode"></i>
+        <span v-if="pathStore.searchQuery" class="search-result">搜索结果："{{ truncatedSearchQuery }}"
           <button class="exit-search" title="退出搜索" @click="pathStore.exitSearchMode()">
             <i class="fas fa-times"></i>
           </button>
@@ -445,18 +492,9 @@ const includesFile = (file) => {
     </div>
     <div class="tool-left">
       <button class="ref-btn" @click="refreshFileList" title="刷新">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-refresh"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="icon icon-tabler icons-tabler-outline icon-tabler-refresh">
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
           <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
           <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
@@ -464,18 +502,9 @@ const includesFile = (file) => {
       </button>
       <div class="divider"></div>
       <button class="more-btn">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-dots"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="icon icon-tabler icons-tabler-outline icon-tabler-dots">
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
           <path d="M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
           <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
@@ -484,35 +513,17 @@ const includesFile = (file) => {
       </button>
     </div>
     <div class="tool-right">
-      <button
-        class="view-toggle"
-        @click="viewMode === 'grid' ? toggleViewMode('list') : toggleViewMode('grid')"
-        title="视图"
-      >
-        <svg
-          v-if="viewMode === 'grid'"
-          class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p"
-          focusable="false"
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-        >
+      <button class="view-toggle" @click="viewMode === 'grid' ? toggleViewMode('list') : toggleViewMode('grid')"
+        title="视图">
+        <svg v-if="viewMode === 'grid'" class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false"
+          aria-hidden="true" viewBox="0 0 24 24">
           <path
-            d="M3 6.25A3.25 3.25 0 0 1 6.25 3h11.5A3.25 3.25 0 0 1 21 6.25v5.772a6.471 6.471 0 0 0 -1.5-.709V10h-4v1.313a6.471 6.471 0 0 0-1.5.709V10h-4v4h2.022a6.471 6.471 0 0 0-.709 1.5H10v4h1.313c.173.534.412 1.037.709 1.5H6.25A3.25 3.25 0 0 1 3 17.75V6.25ZM6.25 4.5A1.75 1.75 0 0 0 4.5 6.25V8.5h4v-4H6.25ZM4.5 10v4h4v-4h-4Zm11-1.5h4V6.25a1.75 1.75 0 0 0-1.75-1.75H15.5v4Zm-1.5-4h-4v4h4v-4Zm-9.5 11v2.25c0 .966.784 1.75 1.75 1.75H8.5v-4h-4Zm9.778-1.525a2 2 0 0 1-1.441 2.497l-.584.144a5.729 5.729 0 0 0 .006 1.807l.54.13a2 2 0 0 1 1.45 2.51l-.187.632c.44.386.94.699 1.484.921l.494-.518a2 2 0 0 1 2.899 0l.498.525a5.281 5.281 0 0 0 1.483-.913l-.198-.686a2 2 0 0 1 1.441-2.496l.584-.144a5.716 5.716 0 0 0-.006-1.808l-.54-.13a2 2 0 0 1-1.45-2.51l.187-.63a5.278 5.278 0 0 0-1.484-.923l-.493.519a2 2 0 0 1-2.9 0l-.498-.525c-.544.22-1.044.53-1.483.912l.198.686ZM17.5 19c-.8 0-1.45-.672-1.45-1.5 0-.829.65-1.5 1.45-1.5.8 0 1.45.671 1.45 1.5 0 .828-.65 1.5-1.45 1.5Z"
-          ></path>
+            d="M3 6.25A3.25 3.25 0 0 1 6.25 3h11.5A3.25 3.25 0 0 1 21 6.25v5.772a6.471 6.471 0 0 0 -1.5-.709V10h-4v1.313a6.471 6.471 0 0 0-1.5.709V10h-4v4h2.022a6.471 6.471 0 0 0-.709 1.5H10v4h1.313c.173.534.412 1.037.709 1.5H6.25A3.25 3.25 0 0 1 3 17.75V6.25ZM6.25 4.5A1.75 1.75 0 0 0 4.5 6.25V8.5h4v-4H6.25ZM4.5 10v4h4v-4h-4Zm11-1.5h4V6.25a1.75 1.75 0 0 0-1.75-1.75H15.5v4Zm-1.5-4h-4v4h4v-4Zm-9.5 11v2.25c0 .966.784 1.75 1.75 1.75H8.5v-4h-4Zm9.778-1.525a2 2 0 0 1-1.441 2.497l-.584.144a5.729 5.729 0 0 0 .006 1.807l.54.13a2 2 0 0 1 1.45 2.51l-.187.632c.44.386.94.699 1.484.921l.494-.518a2 2 0 0 1 2.899 0l.498.525a5.281 5.281 0 0 0 1.483-.913l-.198-.686a2 2 0 0 1 1.441-2.496l.584-.144a5.716 5.716 0 0 0-.006-1.808l-.54-.13a2 2 0 0 1-1.45-2.51l.187-.63a5.278 5.278 0 0 0-1.484-.923l-.493.519a2 2 0 0 1-2.9 0l-.498-.525c-.544.22-1.044.53-1.483.912l.198.686ZM17.5 19c-.8 0-1.45-.672-1.45-1.5 0-.829.65-1.5 1.45-1.5.8 0 1.45.671 1.45 1.5 0 .828-.65 1.5-1.45 1.5Z">
+          </path>
         </svg>
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-list"
-        >
+        <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="icon icon-tabler icons-tabler-outline icon-tabler-list">
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
           <path d="M9 6l11 0" />
           <path d="M9 12l11 0" />
@@ -525,27 +536,19 @@ const includesFile = (file) => {
       </button>
       <div class="divider"></div>
       <button title="排序" @click="fileSortBox = !fileSortBox" class="sort-btn">
-        <svg
-          class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p"
-          focusable="false"
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-        >
+        <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false" aria-hidden="true"
+          viewBox="0 0 24 24">
           <path
-            d="m17.25 4-.1.007a.75.75 0 0 0-.65.743v12.692l-3.22-3.218-.084-.072a.75.75 0 0 0-.976 1.134l4.504 4.5.084.072a.75.75 0 0 0 .976-.073l4.497-4.5.072-.084a.75.75 0 0 0-.073-.977l-.084-.072a.75.75 0 0 0-.977.073L18 17.446V4.75l-.006-.102A.75.75 0 0 0 17.251 4Zm-11.036.22L1.72 8.715l-.073.084a.75.75 0 0 0 .073.976l.084.073a.75.75 0 0 0 .976-.073l3.217-3.218v12.698l.008.102a.75.75 0 0 0 .743.648l.101-.007a.75.75 0 0 0 .649-.743L7.497 6.559l3.223 3.217.084.072a.75.75 0 0 0 .975-1.134L7.275 4.22l-.085-.072a.75.75 0 0 0-.976.073Z"
-          ></path>
+            d="m17.25 4-.1.007a.75.75 0 0 0-.65.743v12.692l-3.22-3.218-.084-.072a.75.75 0 0 0-.976 1.134l4.504 4.5.084.072a.75.75 0 0 0 .976-.073l4.497-4.5.072-.084a.75.75 0 0 0-.073-.977l-.084-.072a.75.75 0 0 0-.977.073L18 17.446V4.75l-.006-.102A.75.75 0 0 0 17.251 4Zm-11.036.22L1.72 8.715l-.073.084a.75.75 0 0 0 .073.976l.084.073a.75.75 0 0 0 .976-.073l3.217-3.218v12.698l.008.102a.75.75 0 0 0 .743.648l.101-.007a.75.75 0 0 0 .649-.743L7.497 6.559l3.223 3.217.084.072a.75.75 0 0 0 .975-1.134L7.275 4.22l-.085-.072a.75.75 0 0 0-.976.073Z">
+          </path>
         </svg>
         <span>排序</span>
       </button>
       <!-- 下拉菜单 -->
       <Transition name="slide-fade">
         <ul v-if="fileSortBox" @v-click-outside="closeDropdown" class="file-sort-box">
-          <li
-            v-for="option in sortOptions"
-            :key="option.value"
-            class="file-sort-item"
-            @click="selectOption(option.value)"
-          >
+          <li v-for="option in sortOptions" :key="option.value" class="file-sort-item"
+            @click="selectOption(option.value)">
             {{ option.label }}
             <span class="checkmark" v-if="fileManageStore.sortOptions === option.value">✓</span>
           </li>
@@ -553,18 +556,9 @@ const includesFile = (file) => {
       </Transition>
       <div class="divider hidden"></div>
       <button class="more-btn hidden">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-dots"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="icon icon-tabler icons-tabler-outline icon-tabler-dots">
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
           <path d="M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
           <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
@@ -574,176 +568,14 @@ const includesFile = (file) => {
     </div>
   </div>
 
-  <div
-    class="file-content"
-    :class="{ 'drag-over': isDragging }"
-    id="fileContent"
-    @dragenter="handleDragEnter"
-    @dragleave="handleDragLeave"
-    @dragover="handleDragOver"
-    @drop="handleDrop"
-    @contextmenu.prevent="openMenu"
-    @click="clearSelectedFiles"
-    v-click-outside="clearSelectedFiles"
-  >
+  <div class="file-content" :class="{ 'drag-over': isDragging }" id="fileContent" @dragenter="handleDragEnter"
+    @dragleave="handleDragLeave" @dragover="handleDragOver" @drop="handleDrop" @contextmenu.prevent="openMenu"
+    @click="clearSelectedFiles" v-click-outside="clearSelectedFiles">
     <!-- 右键菜单 -->
-    <div
-      v-if="isMenuOpen"
-      class="custom-context-menu"
-      :style="{ left: menuLeft + 'px', top: menuTop + 'px' }"
-      v-click-outside="closeMenu"
-    >
-      <!-- 空白区域右键菜单 -->
-      <div v-if="selectedFiles.length === 0">
-        <div class="menu-section">
-          <div class="menu-item" @click="handleUploadFile">
-            <i class="fas fa-arrow-up"></i>
-            <span>上传文件</span>
-          </div>
-          <div class="menu-item" @click="handleUploadFolder">
-            <i class="fas fa-folder-plus"></i>
-            <span>上传目录</span>
-          </div>
-          <div class="menu-item">
-            <i class="fas fa-clipboard"></i>
-            <span>从剪贴板上传</span>
-          </div>
-          <div class="menu-item">
-            <i class="fas fa-cloud-download-alt"></i>
-            <span>离线下载</span>
-          </div>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-section">
-          <div class="menu-item">
-            <i class="fas fa-folder-plus"></i>
-            <span>创建文件夹</span>
-          </div>
-          <div class="menu-item">
-            <i class="fas fa-file-alt"></i>
-            <span>创建文件</span>
-            <i class="fas fa-chevron-right submenu-indicator"></i>
-
-            <!-- 创建文件子菜单 -->
-            <div class="submenu">
-              <div class="submenu-item">
-                <i class="fab fa-markdown"></i>
-                <span>Markdown (.md)</span>
-              </div>
-              <div class="submenu-item">
-                <i class="fas fa-project-diagram"></i>
-                <span>draw.io</span>
-              </div>
-              <div class="submenu-item">
-                <i class="fas fa-file-alt"></i>
-                <span>文本 (.txt)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="menu-divider"></div>
-        <div class="menu-section">
-          <div class="menu-item" @click="handleRefresh">
-            <i class="fas fa-sync-alt"></i>
-            <span>刷新</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 文件/文件夹右键菜单 -->
-      <div v-else-if="selectedFiles.length === 1">
-        <div class="menu-section">
-          <div class="menu-item" @click="handleDownload">
-            <i class="fas fa-download"></i>
-            <span>下载</span>
-          </div>
-          <div class="menu-item">
-            <i class="fas fa-share-alt"></i>
-            <span>分享</span>
-          </div>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-section">
-          <div class="menu-item" @click="handleCopy">
-            <i class="fas fa-copy"></i>
-            <span>复制</span>
-          </div>
-          <div class="menu-item" @click="handleCut">
-            <i class="fas fa-cut"></i>
-            <span>剪切</span>
-          </div>
-          <div class="menu-item">
-            <i class="fas fa-clone"></i>
-            <span>创建副本</span>
-          </div>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-section">
-          <div class="menu-item" @click="handleRename">
-            <i class="fas fa-edit"></i>
-            <span>重命名</span>
-          </div>
-          <div class="menu-item" @click="handleDelete">
-            <i class="fas fa-trash-alt"></i>
-            <span>删除</span>
-          </div>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-section">
-          <div class="menu-item">
-            <i class="fas fa-info-circle"></i>
-            <span>属性</span>
-          </div>
-        </div>
-      </div>
-
-      <div v-else>
-        <div class="menu-section">
-          <div class="menu-item" @click="handleDownload">
-            <i class="fas fa-download"></i>
-            <span>下载</span>
-          </div>
-          <div class="menu-item">
-            <i class="fas fa-share-alt"></i>
-            <span>分享</span>
-          </div>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-section">
-          <div class="menu-item" @click="handleCopy">
-            <i class="fas fa-copy"></i>
-            <span>复制</span>
-          </div>
-          <div class="menu-item" @click="handleCut">
-            <i class="fas fa-cut"></i>
-            <span>剪切</span>
-          </div>
-          <div class="menu-item">
-            <i class="fas fa-clone"></i>
-            <span>创建副本</span>
-          </div>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-section">
-          <div class="menu-item" @click="handleDelete">
-            <i class="fas fa-trash-alt"></i>
-            <span>删除</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ContextMenu :is-open="contextMenuState.isOpen" :menu-left="contextMenuState.left" :menu-top="contextMenuState.top"
+      :selected-files="selectedFiles" @close-menu="closeContextMenu" @upload-file="handleMenuUploadFile"
+      @upload-folder="handleMenuUploadFolder" @refresh="handleMenuRefresh" @download="handleDownload"
+      @rename="handleRename" @delete="handleDelete" @copy="handleCopy" @cut="handleCut" />
 
     <!-- 加载中状态 -->
     <div v-if="isFileListLoading" class="file-list-loading">
@@ -751,10 +583,7 @@ const includesFile = (file) => {
     </div>
 
     <!-- 网格视图 -->
-    <div
-      v-else-if="viewMode === 'grid' && fileManageStore.fileList.length > 0"
-      class="grid-container"
-    >
+    <div v-else-if="viewMode === 'grid' && fileManageStore.fileList.length > 0" class="grid-container">
       <!-- 文件夹区域 -->
       <div v-if="folders.length > 0" class="folders-section">
         <div class="section-title">
@@ -762,14 +591,9 @@ const includesFile = (file) => {
           <span class="count">({{ folders.length }})</span>
         </div>
         <div class="file-list-container grid-view">
-          <div
-            class="file-list-item"
-            v-for="(item, index) in folders"
-            :key="index"
-            @contextmenu.prevent="openMenu($event, item)"
-            @dblclick="handleFolderDoubleClick(item)"
-            style="cursor: pointer"
-          >
+          <div class="file-list-item" v-for="(item, index) in folders" :key="index"
+            @contextmenu.prevent="openMenu($event, item)" @dblclick="handleFolderDoubleClick(item)"
+            style="cursor: pointer">
             <div class="file-container-item" @click="handleSelectFile(item, $event)">
               <div class="file-list-item-icon">
                 <i v-if="!includesFile(item)" class="fas fa-folder"></i>
@@ -792,19 +616,11 @@ const includesFile = (file) => {
           <span class="count">({{ files.length }})</span>
         </div>
         <div class="file-list-container grid-view">
-          <div
-            @click="handleSelectFile(item, $event)"
-            class="file-list-item"
-            v-for="(item, index) in files"
-            :key="index"
-            @contextmenu.prevent="openMenu($event, item)"
-          >
+          <div @click="handleSelectFile(item, $event)" class="file-list-item" v-for="(item, index) in files"
+            :key="index" @contextmenu.prevent="openMenu($event, item)">
             <div class="file-container-item">
               <div class="file-list-item-icon">
-                <i
-                  v-if="!includesFile(item)"
-                  :class="formatFileType(item.name).icon || 'fa-solid fa-file'"
-                ></i>
+                <i v-if="!includesFile(item)" :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
                 <div v-else class="active-icon">
                   <i class="fas fa-check"></i>
                 </div>
@@ -814,12 +630,7 @@ const includesFile = (file) => {
               </div>
             </div>
             <div class="file-thumbnail">
-              <img
-                v-if="item.thumbnailPath"
-                :src="item.thumbnailPath"
-                alt="文件缩略图"
-                aria-haspopup="true"
-              />
+              <img v-if="item.thumbnailPath" :src="item.thumbnailPath" alt="文件缩略图" aria-haspopup="true" />
               <i v-else :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
             </div>
           </div>
@@ -828,10 +639,7 @@ const includesFile = (file) => {
     </div>
 
     <!-- 列表视图 -->
-    <div
-      v-else-if="viewMode === 'list' && fileManageStore.fileList.length > 0"
-      class="file-list-container list-view"
-    >
+    <div v-else-if="viewMode === 'list' && fileManageStore.fileList.length > 0" class="file-list-container list-view">
       <table class="file-table">
         <thead>
           <tr>
@@ -843,14 +651,9 @@ const includesFile = (file) => {
         </thead>
         <tbody>
           <!-- 文件夹区 -->
-          <tr
-            v-for="(item, index) in folders"
-            :key="'folder-' + index"
-            class="file-row"
-            @contextmenu.prevent="openMenu($event, item)"
-            @dblclick="handleFolderDoubleClick(item)"
-            style="cursor: pointer"
-          >
+          <tr v-for="(item, index) in folders" :key="'folder-' + index" class="file-row"
+            @contextmenu.prevent="openMenu($event, item)" @dblclick="handleFolderDoubleClick(item)"
+            style="cursor: pointer">
             <td class="file-name" @click="handleSelectFile(item, $event)">
               <div class="file-name-container">
                 <i v-if="!includesFile(item)" class="fas fa-folder"></i>
@@ -865,19 +668,11 @@ const includesFile = (file) => {
             <td class="file-type">文件夹</td>
           </tr>
           <!-- 文件区 -->
-          <tr
-            v-for="(item, index) in files"
-            :key="'file-' + index"
-            class="file-row"
-            @contextmenu.prevent="openMenu($event, item)"
-            style="cursor: default"
-          >
+          <tr v-for="(item, index) in files" :key="'file-' + index" class="file-row"
+            @contextmenu.prevent="openMenu($event, item)" style="cursor: default">
             <td class="file-name" @click="handleSelectFile(item, $event)">
               <div class="file-name-container">
-                <i
-                  v-if="!includesFile(item)"
-                  :class="formatFileType(item.name).icon || 'fa-solid fa-file'"
-                ></i>
+                <i v-if="!includesFile(item)" :class="formatFileType(item.name).icon || 'fa-solid fa-file'"></i>
                 <div v-else class="active-icon">
                   <i class="fas fa-check"></i>
                 </div>
@@ -895,29 +690,16 @@ const includesFile = (file) => {
     <!-- 文件列表为空时的提示 -->
     <div v-else class="empty-file-list">
       <svg class="empty-file-icon" focusable="false" aria-hidden="true" viewBox="0 0 24 24">
-        <path
-          fill="none"
-          stroke="currentColor"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="1.5"
+        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
           d="M12 22c-.818 0-1.6-.335-3.163-1.006C4.946 19.324 3 18.49 3 17.085V7.747M12 22c.818 0 1.6-.335 3.163-1.006C19.054 19.324 21 18.49 21 17.085V7.747M12 22v-9.83m9-4.422c0 .603-.802.984-2.405 1.747l-2.92 1.39C13.87 11.741 12.97 12.17 12 12.17m9-4.423c0-.604-.802-.985-2.405-1.748M3 7.747c0 .604.802.986 2.405 1.748l2.92 1.39c1.804.857 2.705 1.286 3.675 1.286M3 7.748c0-.604.802-.985 2.405-1.748m.927 7.311l1.994.948M12 2v2m4-1l-1.5 2M8 3l1.5 2"
-          color="currentColor"
-        ></path>
+          color="currentColor"></path>
       </svg>
       <h5 class="empty-message">什么都没有找到</h5>
     </div>
   </div>
-  <input ref="fileInputRef" type="file" style="display: none" @change="onFileInputChange" />
-  <input
-    ref="folderInputRef"
-    type="file"
-    style="display: none"
-    webkitdirectory
-    directory
-    multiple
-    @change="onFolderInputChange"
-  />
+  <input ref="fileInputRef" type="file" style="display: none" multiple @change="onFileInputChange" />
+  <input ref="folderInputRef" type="file" style="display: none" webkitdirectory directory multiple
+    @change="onFolderInputChange" />
 </template>
 
 <style scoped>
@@ -945,89 +727,6 @@ const includesFile = (file) => {
   cursor: pointer;
   justify-content: space-between;
   align-items: center;
-}
-
-.custom-context-menu {
-  position: fixed;
-  min-width: 12.5rem;
-  background-color: var(--card-bg);
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border-color);
-  z-index: var(--z-index-menu);
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  padding: 0.8rem 0 0.6rem 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  position: relative;
-}
-
-.menu-item:hover {
-  border-radius: var(--card-border-radius);
-  background-color: var(--hover-bg);
-}
-
-.menu-item i {
-  width: 1.4rem;
-  margin-right: 0.8rem;
-  display: flex;
-  justify-content: center;
-}
-
-.submenu-indicator {
-  margin-left: auto;
-  margin-right: 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-i.submenu-indicator {
-  margin-right: 0.2rem;
-}
-
-.menu-divider {
-  height: 1px;
-  background-color: var(--border-color);
-}
-
-/* 子菜单样式 */
-.submenu {
-  position: absolute;
-  top: 0;
-  left: 100%;
-  min-width: 14rem;
-  background-color: var(--card-bg);
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border-color);
-  display: none;
-  z-index: var(--z-index-tooltip);
-}
-
-.menu-item:hover .submenu {
-  display: block;
-}
-
-.submenu-item {
-  display: flex;
-  align-items: center;
-  padding: 0.6rem 1.2rem;
-  cursor: pointer;
-}
-
-.submenu-item:hover {
-  background-color: var(--hover-bg);
-}
-
-.submenu-item i {
-  width: 1.4rem;
-  margin-right: 0.8rem;
-  display: flex;
-  justify-content: center;
 }
 
 .grid-container {
@@ -1063,7 +762,7 @@ i.submenu-indicator {
   gap: 1rem;
 }
 
-.tool-bar > div {
+.tool-bar>div {
   padding: 0 0.5rem;
   background-color: var(--card-bg);
   border-radius: var(--card-border-radius);
@@ -1176,7 +875,7 @@ svg.MuiSvgIcon-root {
   cursor: pointer;
 }
 
-.path-item-label + i {
+.path-item-label+i {
   color: var(--text-secondary);
   font-size: 0.7rem;
 }
@@ -1507,22 +1206,6 @@ svg.MuiSvgIcon-root {
 }
 
 @media (max-width: 768px) {
-  /* 确保菜单不会超出视口 */
-  .custom-context-menu {
-    min-width: 14rem;
-  }
-
-  .menu-item {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-  }
-
-  .submenu {
-    min-width: 12rem;
-    left: auto;
-    right: 100%;
-  }
-
   .file-list-container.grid-view {
     grid-template-columns: repeat(2, 1fr);
   }

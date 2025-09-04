@@ -44,6 +44,12 @@ const toast = {
     return id
   },
 
+  updateLoading(id, title, message) {
+    if (id) {
+      getToastInstance().updateToast(id, title, message)
+    }
+  },
+
   // 手动关闭 loading toast
   closeLoading(id) {
     if (id) {

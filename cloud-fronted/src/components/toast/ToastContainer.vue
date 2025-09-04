@@ -47,13 +47,21 @@ const addToast = (type, title, message, duration = 3000, id) => {
   }
 }
 
+const updateToast = (id, title, message) => {
+  const toast = toasts.value.find(toast => toast.id === id)
+  if (toast) {
+    toast.title = title
+    toast.message = message
+  }
+}
+
 // 移除 Toast
 const removeToast = (id) => {
   toasts.value = toasts.value.filter(toast => toast.id !== id)
 }
 
 // 暴露方法给父组件
-defineExpose({ addToast, removeToast })
+defineExpose({ addToast, updateToast, removeToast })
 </script>
 
 <template>
