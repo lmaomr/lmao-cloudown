@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed } from 'vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import useFileManageStore from '@/stores/fileManageStore'
 import usePathStore from '@/stores/pathStore'
@@ -9,6 +9,7 @@ import { formatFileSize, formatDate, formatFileType } from '@/utils/fomatUtil'
 import toast from '@/utils/toast.js'
 // 导入新创建的组件
 import ContextMenu from '@/components/main/ContextMenu.vue'
+import FileToolbar from '@/components/main/FileToolbar.vue'
 
 const pathStore = usePathStore()
 const fileManageStore = useFileManageStore()
@@ -77,21 +78,6 @@ const handleDragLeave = (e) => {
   isDragging.value = false
 }
 
-//上传文件
-const uploadFile = async (file) => {
-  if (!file) {
-    toast.warning('文件格式有误', '请选择一个有效的文件')
-    return
-  }
-  try {
-    await uploadStore.addUploadTask(file)
-    await fileManageStore.getFileList()
-  } catch (error) {
-    console.error('操作失败:', error)
-    toast.error('操作失败', error.message || '上传过程中发生错误')
-  }
-}
-
 // 处理文件放置
 const handleDrop = async (e) => {
   e.preventDefault()
@@ -116,9 +102,6 @@ const handleDrop = async (e) => {
 }
 
 // 右键菜单相关
-const fileInputRef = ref(null)
-const folderInputRef = ref(null)
-
 // 当前选中的文件/文件夹
 const selectedFiles = ref([])
 
@@ -160,230 +143,13 @@ const closeContextMenu = () => {
   contextMenuState.value.isOpen = false
 }
 
-// 右键菜单：上传文件
-const handleMenuUploadFile = () => {
-  closeContextMenu()
-  nextTick(() => fileInputRef.value && fileInputRef.value.click())
-}
-
-const onFileInputChange = async (e) => {
-  const files = e.target.files;
-  if (!files || files.length === 0) return;
-
-  const loadingId = toast.loading('开始上传文件...', `0/${files.length} 个文件`);
-  let completedCount = 0;
-
-  try {
-    // 创建所有上传任务的Promise
-    const uploadPromises = Array.from(files).map((file) =>
-      uploadFile(file)
-        .then(() => {
-          completedCount++;
-          toast.updateLoading(loadingId, '上传中...', `${completedCount}/${files.length} 完成`);
-          return { success: true, file };
-        })
-        .catch(error => {
-          completedCount++;
-          console.error(`文件 ${file.name} 上传失败:`, error);
-          toast.updateLoading(loadingId, '上传中...', `${completedCount}/${files.length} 完成 (有文件失败)`);
-          return { success: false, file, error };
-        })
-    );
-
-    // 等待所有上传任务完成（无论成功失败）
-    const results = await Promise.allSettled(uploadPromises);
-
-    // 统计结果
-    const successfulUploads = results.filter(result =>
-      result.status === 'fulfilled' && result.value.success
-    );
-    const failedUploads = results.filter(result =>
-      result.status === 'fulfilled' && !result.value.success
-    );
-
-    toast.closeLoading(loadingId);
-
-    // 显示最终结果
-    if (failedUploads.length === 0) {
-      toast.success('上传成功', `所有 ${successfulUploads.length} 个文件上传完成`);
-    } else if (successfulUploads.length > 0) {
-      toast.warning('部分成功', `成功: ${successfulUploads.length}, 失败: ${failedUploads.length}`);
-    } else {
-      toast.error('全部失败', '所有文件上传都失败了');
-    }
-
-    // 只要有成功的文件就刷新列表
-    if (successfulUploads.length > 0) {
-      await fileManageStore.getFileList();
-    }
-
-  } catch (error) {
-    toast.closeLoading(loadingId);
-    console.error('上传过程错误:', error);
-    toast.error('上传失败', '上传过程中发生错误');
-  } finally {
-    e.target.value = '';
-  }
-}
-
-// 右键菜单：上传目录
-const handleMenuUploadFolder = () => {
-  closeContextMenu()
-  nextTick(() => folderInputRef.value && folderInputRef.value.click())
-}
-
-const onFolderInputChange = async (e) => {
-  const files = e.target.files
-  if (files && files.length > 0) {
-    for (const file of files) {
-      await uploadFile(file)
-    }
-    await fileManageStore.getFileList()
-  }
-  e.target.value = ''
-}
-
-// 右键菜单：刷新
-const handleMenuRefresh = () => {
+// 右键菜单事件处理
+const handleContextMenuRefresh = () => {
   refreshFileList()
-  closeContextMenu()
 }
 
-// 文件操作：重命名
-const handleRename = () => {
-  console.log('重命名文件:', selectedFiles.value)
-  // 这里实现重命名逻辑
-  closeContextMenu();
-}
-
-// 文件操作：下载
-const handleDownload = async () => {
-  // 检查是否有选中的文件
-  if (selectedFiles.value.length === 0) {
-    toast.info('提示', '请先选择要下载的文件')
-    return
-  }
-
-  const toastId = toast.loading('正在准备下载文件...', '请稍候')
-
-  try {
-    // 过滤出可下载的文件（排除文件夹）
-    const downloadableFiles = selectedFiles.value.filter(f => f.type !== '文件夹')
-
-    // 检查是否有文件夹被选中
-    const folderFiles = selectedFiles.value.filter(f => f.type === '文件夹')
-    if (folderFiles.length > 0) {
-      toast.warning('跳过文件夹', `跳过了 ${folderFiles.length} 个文件夹，无法下载文件夹`)
-    }
-
-    // 如果没有可下载的文件
-    if (downloadableFiles.length === 0) {
-      toast.info('提示', '没有可下载的文件')
-      return
-    }
-
-    // 批量下载文件
-    const downloadPromises = downloadableFiles.map(f =>
-      fileManageStore.downloadFile(f).catch((error) => {
-        // 单个文件下载失败不会影响其他文件
-        console.error(`下载文件 ${f.name} 失败:`, error)
-        return { f, success: false, error }
-      }),
-    )
-
-    // 等待所有下载完成
-    const results = await Promise.allSettled(downloadPromises)
-
-    // 统计下载结果
-    const successCount = results.filter(
-      (result) => result.status === 'fulfilled' && result.value?.success !== false,
-    ).length
-
-    const failedCount = results.length - successCount
-
-    // 显示总结信息
-    if (successCount > 0 && failedCount === 0) {
-      toast.success('下载完成', `成功下载 ${successCount} 个文件`)
-    } else if (successCount > 0 && failedCount > 0) {
-      toast.warning('部分完成', `成功下载 ${successCount} 个文件，失败 ${failedCount} 个`)
-    } else {
-      toast.error('下载失败', '所有文件下载失败')
-    }
-  } catch (error) {
-    console.error('下载过程发生错误:', error)
-    toast.error('下载失败', error.message || '下载过程中发生未知错误')
-  } finally {
-    toast.closeLoading(toastId)
-    closeContextMenu();
-  }
-}
-
-// 文件操作：删除（支持多文件）
-const handleDelete = async () => {
-  console.log('删除文件:', selectedFiles.value)
-
-  // 检查是否有选中的文件
-  if (selectedFiles.value.length === 0) {
-    toast.info("提示", "请选择要删除的文件")
-    return
-  }
-
-  const toastId = toast.loading('正在准备删除文件...', '请稍候')
-
-  try {
-    // 批量删除文件
-    const deletePromises = selectedFiles.value.map(file =>
-      fileManageStore.deleteFile(file).catch(error => {
-        // 单个文件删除失败不会影响其他文件
-        console.error(`删除文件 ${file.name} 失败:`, error)
-        return { file, success: false, error }
-      })
-    )
-
-    // 等待所有删除操作完成
-    const results = await Promise.allSettled(deletePromises)
-
-    // 统计删除结果
-    const successResults = results.filter(result =>
-      result.status === 'fulfilled' && result.value === true
-    )
-    const successCount = successResults.length
-    const failedCount = results.length - successCount
-    console.log('成功的各式各样' + successCount);
-    console.log(failedCount)
-
-    // 显示总结信息
-    if (successCount > 0 && failedCount === 0) {
-      toast.success('删除成功', `成功删除 ${successCount} 个文件`)
-    } else if (successCount > 0 && failedCount > 0) {
-      toast.warning('部分完成', `成功删除 ${successCount} 个文件，失败 ${failedCount} 个`)
-    } else {
-      toast.error('删除失败', '所有文件删除失败，请重试')
-    }
-
-  } catch (error) {
-    console.error('删除过程发生错误:', error)
-    toast.error('删除失败', error.message || '删除过程中发生未知错误')
-  } finally {
-    toast.closeLoading(toastId)
-    closeContextMenu();
-    // 清空选中状态
-    selectedFiles.value = []
-  }
-}
-
-// 文件操作：复制
-const handleCopy = () => {
-  console.log('复制文件:', selectedFiles.value)
-  // 这里实现复制逻辑
-  closeContextMenu();
-}
-
-// 文件操作：剪切
-const handleCut = () => {
-  console.log('剪切文件:', selectedFiles.value)
-  // 这里实现剪切逻辑
-  closeContextMenu();
+const handleContextMenuClearSelection = () => {
+  selectedFiles.value = []
 }
 
 
@@ -399,21 +165,26 @@ watch(
   },
 )
 
-const fileSortBox = ref(false)
-const sortOptions = [
-  { label: '按名称升序', value: 'name-asc' },
-  { label: '按名称降序', value: 'name-desc' },
-  { label: '按日期升序', value: 'time-asc' },
-  { label: '按日期降序', value: 'time-desc' },
-  { label: '按大小升序', value: 'size-asc' },
-  { label: '按大小降序', value: 'size-desc' },
-]
+// 工具栏事件处理函数
+const handleToolbarRefresh = () => {
+  refreshFileList()
+}
 
-const selectOption = (value) => {
+const handleViewToggle = (mode) => {
+  toggleViewMode(mode)
+}
+
+const handleSortChange = (value) => {
   fileManageStore.setSortOptions(value)
-  setTimeout(() => {
-    fileSortBox.value = false
-  }, 100)
+}
+
+const handlePathClick = (index) => {
+  setDesigPath(index)
+}
+
+const setDesigPath = (index) => {
+  pathStore.setDesigPath(index + 1)
+  refreshFileList()
 }
 
 // 处理双击进入文件夹
@@ -426,24 +197,6 @@ const handleFolderDoubleClick = (folder) => {
     refreshFileList()
   }
 }
-
-const setDesigPath = (index) => {
-  pathStore.setDesigPath(index + 1)
-  refreshFileList()
-}
-
-// 计算属性来自动截断
-const truncatedSearchQuery = computed(() => {
-  const w = window.screen.width
-  const query = pathStore.searchQuery || ''
-  const maxLength = w / 60 // 设置最大长度
-
-  if (query.length <= maxLength) {
-    return query
-  }
-
-  return query.substring(0, maxLength) + '...'
-})
 
 const handleSelectFile = (file, event = {}) => {
   closeContextMenu();
@@ -472,110 +225,22 @@ const includesFile = (file) => {
 </script>
 
 <template>
-  <div class="tool-bar">
-    <div class="path-bar">
-      <div class="path-item" v-for="(item, index) in pathStore.isSearchMode
-        ? pathStore.breadcrumbPath.slice(0, 1)
-        : pathStore.breadcrumbPath" :key="index">
-        <span class="path-item-label" @click="setDesigPath(index)">
-          <i class="fas fa-home" v-if="pathStore.getActiveElement(item).icon === 'fas fa-home'"></i>
-          {{ pathStore.getActiveElement(item).label || item.path }}
-        </span>
-        <i class="fas fa-chevron-right"
-          v-show="index < pathStore.breadcrumbPath.length - 1 || pathStore.isSearchMode"></i>
-        <span v-if="pathStore.searchQuery" class="search-result">搜索结果："{{ truncatedSearchQuery }}"
-          <button class="exit-search" title="退出搜索" @click="pathStore.exitSearchMode()">
-            <i class="fas fa-times"></i>
-          </button>
-        </span>
-      </div>
-    </div>
-    <div class="tool-left">
-      <button class="ref-btn" @click="refreshFileList" title="刷新">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-refresh">
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-          <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-        </svg>
-      </button>
-      <div class="divider"></div>
-      <button class="more-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-dots">
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <path d="M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-          <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-          <path d="M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-        </svg>
-      </button>
-    </div>
-    <div class="tool-right">
-      <button class="view-toggle" @click="viewMode === 'grid' ? toggleViewMode('list') : toggleViewMode('grid')"
-        title="视图">
-        <svg v-if="viewMode === 'grid'" class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false"
-          aria-hidden="true" viewBox="0 0 24 24">
-          <path
-            d="M3 6.25A3.25 3.25 0 0 1 6.25 3h11.5A3.25 3.25 0 0 1 21 6.25v5.772a6.471 6.471 0 0 0 -1.5-.709V10h-4v1.313a6.471 6.471 0 0 0-1.5.709V10h-4v4h2.022a6.471 6.471 0 0 0-.709 1.5H10v4h1.313c.173.534.412 1.037.709 1.5H6.25A3.25 3.25 0 0 1 3 17.75V6.25ZM6.25 4.5A1.75 1.75 0 0 0 4.5 6.25V8.5h4v-4H6.25ZM4.5 10v4h4v-4h-4Zm11-1.5h4V6.25a1.75 1.75 0 0 0-1.75-1.75H15.5v4Zm-1.5-4h-4v4h4v-4Zm-9.5 11v2.25c0 .966.784 1.75 1.75 1.75H8.5v-4h-4Zm9.778-1.525a2 2 0 0 1-1.441 2.497l-.584.144a5.729 5.729 0 0 0 .006 1.807l.54.13a2 2 0 0 1 1.45 2.51l-.187.632c.44.386.94.699 1.484.921l.494-.518a2 2 0 0 1 2.899 0l.498.525a5.281 5.281 0 0 0 1.483-.913l-.198-.686a2 2 0 0 1 1.441-2.496l.584-.144a5.716 5.716 0 0 0-.006-1.808l-.54-.13a2 2 0 0 1-1.45-2.51l.187-.63a5.278 5.278 0 0 0-1.484-.923l-.493.519a2 2 0 0 1-2.9 0l-.498-.525c-.544.22-1.044.53-1.483.912l.198.686ZM17.5 19c-.8 0-1.45-.672-1.45-1.5 0-.829.65-1.5 1.45-1.5.8 0 1.45.671 1.45 1.5 0 .828-.65 1.5-1.45 1.5Z">
-          </path>
-        </svg>
-        <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-list">
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <path d="M9 6l11 0" />
-          <path d="M9 12l11 0" />
-          <path d="M9 18l11 0" />
-          <path d="M5 6l0 .01" />
-          <path d="M5 12l0 .01" />
-          <path d="M5 18l0 .01" />
-        </svg>
-        <span>视图</span>
-      </button>
-      <div class="divider"></div>
-      <button title="排序" @click="fileSortBox = !fileSortBox" class="sort-btn">
-        <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false" aria-hidden="true"
-          viewBox="0 0 24 24">
-          <path
-            d="m17.25 4-.1.007a.75.75 0 0 0-.65.743v12.692l-3.22-3.218-.084-.072a.75.75 0 0 0-.976 1.134l4.504 4.5.084.072a.75.75 0 0 0 .976-.073l4.497-4.5.072-.084a.75.75 0 0 0-.073-.977l-.084-.072a.75.75 0 0 0-.977.073L18 17.446V4.75l-.006-.102A.75.75 0 0 0 17.251 4Zm-11.036.22L1.72 8.715l-.073.084a.75.75 0 0 0 .073.976l.084.073a.75.75 0 0 0 .976-.073l3.217-3.218v12.698l.008.102a.75.75 0 0 0 .743.648l.101-.007a.75.75 0 0 0 .649-.743L7.497 6.559l3.223 3.217.084.072a.75.75 0 0 0 .975-1.134L7.275 4.22l-.085-.072a.75.75 0 0 0-.976.073Z">
-          </path>
-        </svg>
-        <span>排序</span>
-      </button>
-      <!-- 下拉菜单 -->
-      <Transition name="slide-fade">
-        <ul v-if="fileSortBox" @v-click-outside="closeDropdown" class="file-sort-box">
-          <li v-for="option in sortOptions" :key="option.value" class="file-sort-item"
-            @click="selectOption(option.value)">
-            {{ option.label }}
-            <span class="checkmark" v-if="fileManageStore.sortOptions === option.value">✓</span>
-          </li>
-        </ul>
-      </Transition>
-      <div class="divider hidden"></div>
-      <button class="more-btn hidden">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-dots">
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <path d="M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-          <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-          <path d="M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-        </svg>
-      </button>
-    </div>
-  </div>
+  <!-- 工具栏组件 -->
+  <FileToolbar 
+    :view-mode="viewMode"
+    @refresh="handleToolbarRefresh"
+    @view-toggle="handleViewToggle"
+    @sort-change="handleSortChange"
+    @path-click="handlePathClick"
+  />
 
   <div class="file-content" :class="{ 'drag-over': isDragging }" id="fileContent" @dragenter="handleDragEnter"
     @dragleave="handleDragLeave" @dragover="handleDragOver" @drop="handleDrop" @contextmenu.prevent="openMenu"
     @click="clearSelectedFiles" v-click-outside="clearSelectedFiles">
     <!-- 右键菜单 -->
     <ContextMenu :is-open="contextMenuState.isOpen" :menu-left="contextMenuState.left" :menu-top="contextMenuState.top"
-      :selected-files="selectedFiles" @close-menu="closeContextMenu" @upload-file="handleMenuUploadFile"
-      @upload-folder="handleMenuUploadFolder" @refresh="handleMenuRefresh" @download="handleDownload"
-      @rename="handleRename" @delete="handleDelete" @copy="handleCopy" @cut="handleCut" />
+      :selected-files="selectedFiles" @close-menu="closeContextMenu" @refresh-file-list="handleContextMenuRefresh"
+      @clear-selection="handleContextMenuClearSelection" />
 
     <!-- 加载中状态 -->
     <div v-if="isFileListLoading" class="file-list-loading">
@@ -697,38 +362,9 @@ const includesFile = (file) => {
       <h5 class="empty-message">什么都没有找到</h5>
     </div>
   </div>
-  <input ref="fileInputRef" type="file" style="display: none" multiple @change="onFileInputChange" />
-  <input ref="folderInputRef" type="file" style="display: none" webkitdirectory directory multiple
-    @change="onFolderInputChange" />
 </template>
 
 <style scoped>
-.sort-btn {
-  padding: 0.4rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.file-sort-box {
-  position: absolute;
-  top: 110%;
-  right: 0;
-  background-color: var(--card-bg);
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--shadow-lg);
-  z-index: var(--z-index-menu);
-}
-
-.file-sort-item {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem 0.8rem;
-  cursor: pointer;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .grid-container {
   display: flex;
   flex-direction: column;
@@ -754,150 +390,6 @@ const includesFile = (file) => {
 
 .count {
   color: var(--text-secondary);
-}
-
-.tool-bar {
-  flex: 0 0 3.2rem;
-  display: flex;
-  gap: 1rem;
-}
-
-.tool-bar>div {
-  padding: 0 0.5rem;
-  background-color: var(--card-bg);
-  border-radius: var(--card-border-radius);
-  border: 1px solid var(--border-color);
-}
-
-.path-bar {
-  display: flex;
-  align-items: center;
-  padding: 0 1.25rem;
-  flex: 1;
-}
-
-.tool-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-div.tool-left,
-div.tool-right {
-  padding: 0 1rem;
-}
-
-svg.MuiSvgIcon-root {
-  fill: var(--text-color);
-}
-
-.tool-left button,
-.tool-right button {
-  padding: 0 0.4rem;
-  background-color: transparent;
-  color: var(--text-color);
-  font-size: 1rem;
-  font-weight: 500;
-  box-shadow: none;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.divider {
-  width: 1px;
-  height: 100%;
-  background-color: var(--border-color);
-}
-
-.tool-left svg,
-.tool-right svg {
-  width: 1.4rem;
-}
-
-.tool-left button:focus,
-.tool-right button:focus {
-  outline: none;
-}
-
-.tool-left button:hover,
-.tool-right button:hover {
-  color: var(--primary-color);
-}
-
-.tool-right button:hover svg {
-  fill: var(--primary-color);
-}
-
-.ref-btn {
-  border-right-color: var(--i-color);
-}
-
-.tool-right {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: space-around;
-  padding: 0;
-}
-
-/* 视图切换按钮 */
-.view-toggle {
-  display: flex;
-  align-items: center;
-}
-
-.view-toggle svg {
-  width: 1.4rem;
-}
-
-.view-btn i {
-  font-size: 1rem;
-}
-
-/* 同时匹配 divider 和 hidden 类 */
-.divider.hidden,
-.more-btn.hidden {
-  /* 你的样式 */
-  display: none;
-}
-
-.path-item-label,
-.search-result {
-  color: var(--i-color);
-  font-size: 0.875rem;
-  margin: 0 8.75px;
-}
-
-.path-item-label:hover {
-  color: var(--primary-color);
-  cursor: pointer;
-}
-
-.path-item-label+i {
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-}
-
-.exit-search {
-  margin-left: 8px;
-  color: var(--danger-color);
-}
-
-.exit-search {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  font-size: 0.85rem;
-  display: inline-flex;
-  align-items: center;
-}
-
-.exit-search:focus {
-  outline: none;
-  outline-offset: 0;
 }
 
 .file-content {
@@ -983,12 +475,6 @@ svg.MuiSvgIcon-root {
 
 .grid-view .file-list-item:active {
   background-color: var(--active-bg);
-}
-
-.file-container-item {
-  display: flex;
-  align-items: center;
-  line-height: 2.4rem;
 }
 
 /* 文件图标样式 */
@@ -1226,25 +712,6 @@ svg.MuiSvgIcon-root {
 }
 
 @media (max-width: 480px) {
-  .tool-left {
-    display: none;
-  }
-
-  .file-sort-box {
-    right: 18%;
-  }
-
-  .tool-right span {
-    display: none;
-  }
-
-  /* 同时匹配 divider 和 hidden 类 */
-  .divider.hidden,
-  .more-btn.hidden {
-    /* 你的样式 */
-    display: flex;
-  }
-
   /* 小屏幕下网格改为两列 */
   .file-list-container.grid-view {
     grid-template-columns: repeat(2, 1fr);
