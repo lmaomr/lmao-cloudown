@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import useFileManageStore from '@/stores/fileManageStore'
 import usePathStore from '@/stores/pathStore'
@@ -42,6 +42,7 @@ const loadFileList = async () => {
     console.error('加载文件列表失败:', error)
     toast.error('加载文件列表失败', error.message || '请稍后重试')
   } finally {
+    clearSelectedFiles();
     isFileListLoading.value = false
   }
 }
@@ -216,27 +217,54 @@ const handleSelectFile = (file, event = {}) => {
 }
 
 const clearSelectedFiles = () => {
+  // 只有当点击的是文件内容区域本身时才清空选择，避免子元素点击时误触发
   selectedFiles.value = []
 }
 
 const includesFile = (file) => {
   return selectedFiles.value.find((f) => f.id === file.id)
 }
+
+const reverseSelect = () => {
+  const currentlySelectedIds = selectedFiles.value.map(f => f.id)
+  selectedFiles.value = fileManageStore.fileList.filter(f => !currentlySelectedIds.includes(f.id))
+}
+
+const handleSelectAll = () => {
+  selectedFiles.value = fileManageStore.fileList.slice()
+}
+
+// 键盘事件处理
+const handleKeyDown = (event) => {
+  // Ctrl+A 全选
+  if (event.ctrlKey && event.key === 'a') {
+    event.preventDefault()
+    handleSelectAll()
+  }
+}
+
+// 组件挂载时添加键盘监听
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown)
+})
+
+// 组件卸载时移除键盘监听
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown)
+})
+
+
+
 </script>
 
 <template>
   <!-- 工具栏组件 -->
-  <FileToolbar 
-    :view-mode="viewMode"
-    @refresh="handleToolbarRefresh"
-    @view-toggle="handleViewToggle"
-    @sort-change="handleSortChange"
-    @path-click="handlePathClick"
-  />
+  <FileToolbar :view-mode="viewMode" @refresh="handleToolbarRefresh" @view-toggle="handleViewToggle"
+    @sort-change="handleSortChange" @path-click="handlePathClick" @select-all="handleSelectAll"
+    @reverse-select="reverseSelect" @cancel-select="clearSelectedFiles" />
 
   <div class="file-content" :class="{ 'drag-over': isDragging }" id="fileContent" @dragenter="handleDragEnter"
-    @dragleave="handleDragLeave" @dragover="handleDragOver" @drop="handleDrop" @contextmenu.prevent="openMenu"
-    @click="clearSelectedFiles" v-click-outside="clearSelectedFiles">
+    @dragleave="handleDragLeave" @dragover="handleDragOver" @drop="handleDrop" @contextmenu.prevent="openMenu">
     <!-- 右键菜单 -->
     <ContextMenu :is-open="contextMenuState.isOpen" :menu-left="contextMenuState.left" :menu-top="contextMenuState.top"
       :selected-files="selectedFiles" @close-menu="closeContextMenu" @refresh-file-list="handleContextMenuRefresh"
@@ -712,6 +740,7 @@ const includesFile = (file) => {
 }
 
 @media (max-width: 480px) {
+
   /* 小屏幕下网格改为两列 */
   .file-list-container.grid-view {
     grid-template-columns: repeat(2, 1fr);

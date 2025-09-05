@@ -100,7 +100,6 @@ export const fileRename = (fileId, newName) => {
 }
 
 export const deleteFile = (fileId) => {
-  console.log("delete api fileId:", fileId);
   return request({
     url: '/api/file/delete',
     method: 'delete',

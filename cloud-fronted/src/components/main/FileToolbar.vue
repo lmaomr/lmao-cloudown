@@ -16,12 +16,26 @@ const emit = defineEmits([
   'refresh',
   'view-toggle',
   'sort-change',
-  'path-click'
+  'path-click',
+  'select-all',
+  'cancel-select',
+  'reverse-select'
 ])
 
 // Store 实例
 const pathStore = usePathStore()
 const fileManageStore = useFileManageStore()
+
+// 更多功能相关状态
+const moreMenuBox = ref(false)
+
+const toggleMoreBox = () => {
+  moreMenuBox.value = !moreMenuBox.value
+}
+
+const closeMoreBox = () => {
+  moreMenuBox.value = false
+}
 
 // 排序相关状态
 const fileSortBox = ref(false)
@@ -61,7 +75,8 @@ const toggleSortBox = () => {
   fileSortBox.value = !fileSortBox.value
 }
 
-const closeSortBox = () => {
+const closeSortBox = (e) => {
+  e.stopPropagation();
   fileSortBox.value = false
 }
 
@@ -74,6 +89,18 @@ const handleSortOptionSelect = (value) => {
 
 const handlePathClick = (index) => {
   emit('path-click', index)
+}
+
+const handleSelectAll = () => {
+  emit('select-all')
+}
+
+const cancelSelect = () => {
+  emit('cancel-select')
+}
+
+const reverseSelect = () => {
+  emit('reverse-select')
 }
 </script>
 
@@ -107,7 +134,7 @@ const handlePathClick = (index) => {
         </svg>
       </button>
       <div class="divider"></div>
-      <button class="more-btn">
+      <button class="more-btn" @click.stop="toggleMoreBox" title="更多功能">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
           class="icon icon-tabler icons-tabler-outline icon-tabler-dots">
@@ -140,7 +167,7 @@ const handlePathClick = (index) => {
         <span>视图</span>
       </button>
       <div class="divider"></div>
-      <button title="排序" @click="toggleSortBox" class="sort-btn">
+      <button title="排序" @click="toggleSortBox" v-click-outside="closeSortBox" class="sort-btn">
         <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false" aria-hidden="true"
           viewBox="0 0 24 24">
           <path
@@ -151,7 +178,7 @@ const handlePathClick = (index) => {
       </button>
       <!-- 下拉菜单 -->
       <Transition name="slide-fade">
-        <ul v-if="fileSortBox" @v-click-outside="closeSortBox" class="file-sort-box">
+        <ul v-if="fileSortBox" class="file-sort-box">
           <li v-for="option in sortOptions" :key="option.value" class="file-sort-item"
             @click="handleSortOptionSelect(option.value)">
             {{ option.label }}
@@ -159,8 +186,11 @@ const handlePathClick = (index) => {
           </li>
         </ul>
       </Transition>
+
       <div class="divider hidden"></div>
-      <button class="more-btn hidden">
+
+      <!-- 小屏幕更多功能菜单 -->
+      <button class="more-btn hidden" @click.stop="toggleMoreBox" title="更多功能">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
           class="icon icon-tabler icons-tabler-outline icon-tabler-dots">
@@ -170,11 +200,105 @@ const handlePathClick = (index) => {
           <path d="M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
         </svg>
       </button>
+      <Transition name="slide-fade">
+        <ul v-if="moreMenuBox" class="more-menu-box" v-click-outside="closeMoreBox">
+          <li @click="handleRefresh">
+            <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false" aria-hidden="true"
+              viewBox="0 0 24 24">
+              <path
+                d="M16.052 5.029a1 1 0 0 0 .189 1.401 7.002 7.002 0 0 1-3.157 12.487l.709-.71a1 1 0 0 0-1.414-1.414l-2.5 2.5a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 1.414-1.414l-.843-.842A9.001 9.001 0 0 0 17.453 4.84a1 1 0 0 0-1.401.189Zm-1.93-1.736-2.5-2.5a1 1 0 0 0-1.498 1.32l.083.094.843.843a9.001 9.001 0 0 0-4.778 15.892A1 1 0 0 0 7.545 17.4a7.002 7.002 0 0 1 3.37-12.316l-.708.709a1 1 0 0 0 1.32 1.497l.094-.083 2.5-2.5a1 1 0 0 0 .083-1.32l-.083-.094Z">
+              </path>
+            </svg><span>刷新</span>
+          </li>
+          <li @click="handleSelectAll">
+            <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false" aria-hidden="true"
+              viewBox="0 0 24 24">
+              <path
+                d="M3 5.75A2.75 2.75 0 0 1 5.75 3h12.5A2.75 2.75 0 0 1 21 5.75v12.5A2.75 2.75 0 0 1 18.25 21H5.75A2.75 2.75 0 0 1 3 18.25zm9.75 13.75h5.5c.69 0 1.25-.56 1.25-1.25v-5.5h-6.75zm-1.5-6.75H4.5v5.5c0 .69.56 1.25 1.25 1.25h5.5zm1.5-1.5h6.75v-5.5c0-.69-.56-1.25-1.25-1.25h-5.5zm-1.5-6.75h-5.5c-.69 0-1.25.56-1.25 1.25v5.5h6.75z">
+              </path>
+            </svg><span>全选</span>
+            <code class="code">Ctrl</code>+<code class="code">A</code>
+          </li>
+          <li @click="reverseSelect">
+            <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false" aria-hidden="true"
+              viewBox="0 0 24 24">
+              <g fill="none">
+                <path d="M14 3.75a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h2.5a.75.75 0 0 1 .75.75z"
+                  fill="currentColor"></path>
+                <path d="M4.5 10.75a.75.75 0 0 0-1.5 0v2.5a.75.75 0 0 0 1.5 0v-2.5z" fill="currentColor"></path>
+                <path d="M19.5 10.75a.75.75 0 0 1 1.5 0v2.5a.75.75 0 0 1-1.5 0v-2.5z" fill="currentColor"></path>
+                <path d="M13.25 21a.75.75 0 0 0 0-1.5h-2.5a.75.75 0 0 0 0 1.5h2.5z" fill="currentColor"></path>
+                <path
+                  d="M7 3.75A.75.75 0 0 0 6.25 3h-.5A2.75 2.75 0 0 0 3 5.75v.5a.75.75 0 0 0 1.5 0v-.5c0-.69.56-1.25 1.25-1.25h.5A.75.75 0 0 0 7 3.75z"
+                  fill="currentColor"></path>
+                <path
+                  d="M17.75 3a.75.75 0 0 0 0 1.5h.5c.69 0 1.25.56 1.25 1.25v.5a.75.75 0 0 0 1.5 0v-.5A2.75 2.75 0 0 0 18.25 3h-.5z"
+                  fill="currentColor"></path>
+                <path
+                  d="M7 20.25a.75.75 0 0 1-.75.75h-.5A2.75 2.75 0 0 1 3 18.25v-.5a.75.75 0 0 1 1.5 0v.5c0 .69.56 1.25 1.25 1.25h.5a.75.75 0 0 1 .75.75z"
+                  fill="currentColor"></path>
+                <path
+                  d="M17.75 21a.75.75 0 0 1 0-1.5h.5c.69 0 1.25-.56 1.25-1.25v-.5a.75.75 0 0 1 1.5 0v.5A2.75 2.75 0 0 1 18.25 21h-.5z"
+                  fill="currentColor"></path>
+              </g>
+            </svg><span>反选</span>
+          </li>
+          <li @click="cancelSelect">
+            <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-vh810p" focusable="false" aria-hidden="true"
+              viewBox="0 0 24 24">
+              <path fill="currentColor"
+                d="M13.25 4.5a.75.75 0 0 0 0-1.5h-2.5a.75.75 0 0 0 0 1.5zM3.75 10a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75m16.5 0a.75.75 0 0 0-.75.75v2.5a.75.75 0 0 0 1.5 0v-2.5a.75.75 0 0 0-.75-.75M14 20.25a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h2.5a.75.75 0 0 1 .75.75M6.25 3a.75.75 0 0 1 0 1.5h-.5c-.69 0-1.25.56-1.25 1.25v.5a.75.75 0 0 1-1.5 0v-.5A2.75 2.75 0 0 1 5.75 3zM17 3.75a.75.75 0 0 1 .75-.75h.5A2.75 2.75 0 0 1 21 5.75v.5a.75.75 0 0 1-1.5 0v-.5c0-.69-.56-1.25-1.25-1.25h-.5a.75.75 0 0 1-.75-.75M6.25 21a.75.75 0 0 0 0-1.5h-.5c-.69 0-1.25-.56-1.25-1.25v-.5a.75.75 0 0 0-1.5 0v.5A2.75 2.75 0 0 0 5.75 21zM17 20.25c0 .414.336.75.75.75h.5A2.75 2.75 0 0 0 21 18.25v-.5a.75.75 0 0 0-1.5 0v.5c0 .69-.56 1.25-1.25 1.25h-.5a.75.75 0 0 0-.75.75m-4.25-14a.75.75 0 0 0-1.5 0v5h-5a.75.75 0 0 0 0 1.5h5v5a.75.75 0 0 0 1.5 0v-5h5a.75.75 0 0 0 0-1.5h-5z">
+              </path>
+            </svg><span>取消选择</span>
+          </li>
+        </ul>
+      </Transition>
     </div>
   </div>
 </template>
 
 <style scoped>
+.more-menu-box {
+  position: absolute;
+  top: 3.4rem;
+  right: 13.5rem;
+  background-color: var(--card-bg);
+  border-radius: var(--card-border-radius);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-index-menu);
+  width: 12.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: var(--card-border-radius);
+}
+
+.more-menu-box * {
+  fill:rgb(151, 151, 151);
+}
+
+.more-menu-box li:first-child {
+  display: none;
+}
+
+.more-menu-box li {
+  padding: 0.4rem 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.more-menu-box li:hover {
+  border-radius: var(--card-border-radius);
+  background-color: var(--hover-bg);
+}
+
+.more-menu-box li span {
+  flex: 1;
+}
+
 .sort-btn {
   padding: 0.4rem;
   border-radius: 4px;
@@ -342,6 +466,21 @@ svg.MuiSvgIcon-root {
   outline-offset: 0;
 }
 
+/* slide-fade 过渡动画 */
+.slide-fade-enter-active {
+  transition: all 0.2s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.2s cubic-bezier(1.0, 0.5, 0.8, 1.0);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-10px);
+  opacity: 0;
+}
+
 @media (max-width: 480px) {
   .tool-left {
     display: none;
@@ -360,6 +499,20 @@ svg.MuiSvgIcon-root {
   .more-btn.hidden {
     /* 你的样式 */
     display: flex;
+  }
+
+  .more-menu-box {
+    right: 0%;
+    top: 3.4rem;
+    width: 13rem;
+  }
+
+  .more-menu-box li:first-child {
+    display: flex;
+  }
+
+  .more-menu-box span {
+    display: block;
   }
 }
 </style>

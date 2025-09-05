@@ -192,3 +192,19 @@ img {
 * .fa-sun {
   color: #ffd54f;
 }
+
+code {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--i-color);
+}
+
+.code {
+  background-color: rgb(245, 245, 245);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 1px 1px, rgba(255, 255, 255, 0.7) 0px 2px 0px 0px inset;
+  padding: 0px 4px;
+  border-radius: 4px;
+  height: 1.2rem;
+  line-height: 1.2rem;
+}
